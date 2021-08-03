@@ -13,6 +13,50 @@
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
+struct ad7293_dev {
+	struct spi_device	*spi;
+	struct regmap		*regmap;
+};
+
+static const struct regmap_config ad7293_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.read_flag_mask = BIT(7),
+	.max_register = 0x12,
+};
+
+static int ad7293_init(struct ad7293_dev *dev)
+{
+
+}
+
+static int ad7293_probe(struct spi_device *spi)
+{
+	struct iio_dev *indio_dev;
+	struct regmap *regmap;
+	struct ad7293_dev *dev;
+	int ret;
+
+	regmap = devm_regmap_init_spi(spi, &ad7293_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	indio_dev->dev.parent = &spi->dev;
+	indio_dev->info = &ad7293_info;
+	indio_dev->name = "ad7293";
+
+	dev = iio_priv(indio_dev);
+	dev->regmap = regmap;
+
+	dev->spi = spi;
+
+	ret = ad7293_init(dev);
+	if (ret)
+		return ret;
+
+	return devm_iio_device_register(&spi->dev, indio_dev);
+}
+
 static const struct spi_device_id ad7293_id[] = {
 	{ "ad7293", 0 },
 	{}

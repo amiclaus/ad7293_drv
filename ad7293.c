@@ -23,6 +23,7 @@
 
 #define AD7293_PAGE(x)				((x) << 8)
 #define AD7293_PAGE_ADDR(x)			(((x) & 0xFF) >> 8)
+#define AD7293_REG_ADDR(x)			((x) & 0xFF)
 
 /* AD7293 Register Map Common */
 #define AD7293_REG_NO_OP			(AD7293_R1B | AD7293_PAGE(0x00) | 0x00)
@@ -296,22 +297,94 @@
 
 struct ad7293_dev {
 	struct spi_device	*spi;
-	struct regmap		*regmap;
+	u8 page_select;
+	u8 data[3] ____cacheline_aligned;
 };
 
+static int ad7293_page_select(struct ad7293_dev *dev, u8 page_nr)
+{
+	dev->data[0] = AD7293_REG_ADDR(AD7293_REG_PAGE_SELECT)
+	dev->data[1] = page_nr;
 
-/* AD7293 Register Map Page 3 */
-static const struct regmap_config ad7293_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.read_flag_mask = BIT(7),
-	.max_register = 0x12,
-};
+	return spi_write(dev->spi, &dev->data[0], 2)
+}
+
+static int ad7293_spi_read(struct ad7293_dev *dev, unsigned int reg,
+			      unsigned int *val)
+{
+	int ret;
+	struct spi_transfer t = {0};
+
+	if (dev->page_select != AD7293_PAGE_ADDR(reg)) {
+		ret = ad7293_page_select(dev, AD7293_PAGE_ADDR(reg))
+		if (ret)
+			return ret;
+
+		dev->page_select = AD7293_PAGE_ADDR(reg);
+	}
+
+	dev->data[0] = AD7293_READ | AD7293_REG_ADDR(reg);
+	dev->data[1] = 0x0;
+	dev->data[2] = 0x0;
+
+	t.tx_buf = &dev->data[0];
+	t.rx_buf = &dev->data[1];
+	t.len = 1 + AD7293_TRANSF_LEN(reg);
+
+	ret = spi_sync_transfer(dev->spi, &t, 1);
+	if (ret)
+		return ret;
+
+	*val = (get_unaligned_be16(&dev->data[1])) >> (8 * (2 - AD7293_TRANSF_LEN(reg)));
+
+	return ret;
+}
+
+static int ad7293_spi_write(struct ad7293_dev *dev, unsigned int reg,
+			      unsigned int val)
+{
+	int ret;
+
+	if (dev->page_select != AD7293_PAGE_ADDR(reg)) {
+		ret = ad7293_page_select(dev, AD7293_PAGE_ADDR(reg))
+		if (ret)
+			return ret;
+
+		dev->page_select = AD7293_PAGE_ADDR(reg);
+	}
+
+	if (AD7293_TRANSF_LEN(reg) == 1)
+		put_unaligned_be16(((AD7293_WRITE | AD7293_REG_ADDR(reg)) << 8) | val, &dev->data[0]);
+	else
+		put_unaligned_be24(((AD7293_WRITE | AD7293_REG_ADDR(reg)) << 16) | val, &dev->data[0]);
+
+	return spi_write(dev->spi, &dev->data[0], 1 + AD7293_TRANSF_LEN(reg));
+}
+
+static int ad7293_reg_access(struct iio_dev *indio_dev,
+				unsigned int reg,
+				unsigned int write_val,
+				unsigned int *read_val)
+{
+	struct ad7293_dev *dev = iio_priv(indio_dev);
+	int ret;
+
+	if (read_val)
+		ret = ad7293_spi_read(dev, reg, read_val);
+	else
+		ret = ad7293_spi_write(dev, reg, write_val);
+
+	return ret;
+}
 
 static int ad7293_init(struct ad7293_dev *dev)
 {
 
 }
+
+static const struct iio_info ad7293_info = {
+	.debugfs_reg_access = &ad7293_reg_access,
+};
 
 static int ad7293_probe(struct spi_device *spi)
 {

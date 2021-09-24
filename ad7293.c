@@ -22,7 +22,7 @@
 #define AD7293_TRANSF_LEN(x)			((x) >> 16)
 
 #define AD7293_PAGE(x)				((x) << 8)
-#define AD7293_PAGE_ADDR(x)			(((x) & 0xFF) >> 8)
+#define AD7293_PAGE_ADDR(x)			(((x) >> 8) & 0xFF)
 #define AD7293_REG_ADDR(x)			((x) & 0xFF)
 
 /* AD7293 Register Map Common */
@@ -124,8 +124,8 @@
 #define AD7293_REG_BI_VOUT3_MON_HL		(AD7293_R2B | AD7293_PAGE(0x05) | 0x17)
 #define AD7293_REG_RS0_MON_HL			(AD7293_R2B | AD7293_PAGE(0x05) | 0x28)
 #define AD7293_REG_RS1_MON_HL			(AD7293_R2B | AD7293_PAGE(0x05) | 0x29)
-#define AD7293_REG_RS2_MON			(AD7293_R2B | AD7293_PAGE(0x05) | 0x2A)
-#define AD7293_REG_RS3_MON			(AD7293_R2B | AD7293_PAGE(0x05) | 0x2B)
+#define AD7293_REG_RS2_MON_HL			(AD7293_R2B | AD7293_PAGE(0x05) | 0x2A)
+#define AD7293_REG_RS3_MON_HL			(AD7293_R2B | AD7293_PAGE(0x05) | 0x2B)
 
 /* AD7293 Register Map Page 0x06 */
 #define AD7293_REG_VIN0_LL			(AD7293_R2B | AD7293_PAGE(0x06) | 0x10)
@@ -303,10 +303,10 @@ struct ad7293_dev {
 
 static int ad7293_page_select(struct ad7293_dev *dev, u8 page_nr)
 {
-	dev->data[0] = AD7293_REG_ADDR(AD7293_REG_PAGE_SELECT)
+	dev->data[0] = AD7293_REG_ADDR(AD7293_REG_PAGE_SELECT);
 	dev->data[1] = page_nr;
 
-	return spi_write(dev->spi, &dev->data[0], 2)
+	return spi_write(dev->spi, &dev->data[0], 2);
 }
 
 static int ad7293_spi_read(struct ad7293_dev *dev, unsigned int reg,
@@ -315,8 +315,13 @@ static int ad7293_spi_read(struct ad7293_dev *dev, unsigned int reg,
 	int ret;
 	struct spi_transfer t = {0};
 
+	u8 temp = AD7293_PAGE_ADDR(reg);
+
+	printk ("page select: %d", dev->page_select);
+	printk ("page address: %d", temp);
+
 	if (dev->page_select != AD7293_PAGE_ADDR(reg)) {
-		ret = ad7293_page_select(dev, AD7293_PAGE_ADDR(reg))
+		ret = ad7293_page_select(dev, AD7293_PAGE_ADDR(reg));
 		if (ret)
 			return ret;
 
@@ -330,12 +335,12 @@ static int ad7293_spi_read(struct ad7293_dev *dev, unsigned int reg,
 	t.tx_buf = &dev->data[0];
 	t.rx_buf = &dev->data[1];
 	t.len = 1 + AD7293_TRANSF_LEN(reg);
-
+	printk("transfer len %d", 1 + AD7293_TRANSF_LEN(reg));
 	ret = spi_sync_transfer(dev->spi, &t, 1);
 	if (ret)
 		return ret;
 
-	*val = (get_unaligned_be16(&dev->data[1])) >> (8 * (2 - AD7293_TRANSF_LEN(reg)));
+	*val = ((dev->data[1] << 8) | dev->data[2]) >> (8 * (2 - AD7293_TRANSF_LEN(reg)));
 
 	return ret;
 }
@@ -346,17 +351,20 @@ static int ad7293_spi_write(struct ad7293_dev *dev, unsigned int reg,
 	int ret;
 
 	if (dev->page_select != AD7293_PAGE_ADDR(reg)) {
-		ret = ad7293_page_select(dev, AD7293_PAGE_ADDR(reg))
+		ret = ad7293_page_select(dev, AD7293_PAGE_ADDR(reg));
 		if (ret)
 			return ret;
 
 		dev->page_select = AD7293_PAGE_ADDR(reg);
 	}
 
-	if (AD7293_TRANSF_LEN(reg) == 1)
-		put_unaligned_be16(((AD7293_WRITE | AD7293_REG_ADDR(reg)) << 8) | val, &dev->data[0]);
-	else
-		put_unaligned_be24(((AD7293_WRITE | AD7293_REG_ADDR(reg)) << 16) | val, &dev->data[0]);
+	dev->data[0] = AD7293_WRITE | AD7293_REG_ADDR(reg);
+	if (AD7293_TRANSF_LEN(reg) == 1) {
+		dev->data[1] = val;
+	} else {
+		dev->data[1] = val >> 8;
+		dev->data[2] = val;
+	}
 
 	return spi_write(dev->spi, &dev->data[0], 1 + AD7293_TRANSF_LEN(reg));
 }
@@ -379,7 +387,7 @@ static int ad7293_reg_access(struct iio_dev *indio_dev,
 
 static int ad7293_init(struct ad7293_dev *dev)
 {
-
+	return 0;
 }
 
 static const struct iio_info ad7293_info = {
@@ -389,22 +397,21 @@ static const struct iio_info ad7293_info = {
 static int ad7293_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
-	struct regmap *regmap;
 	struct ad7293_dev *dev;
 	int ret;
 
-	regmap = devm_regmap_init_spi(spi, &ad7293_regmap_config);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*dev));
+	if (!indio_dev)
+		return -ENOMEM;
 
+	dev = iio_priv(indio_dev);
+	
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ad7293_info;
 	indio_dev->name = "ad7293";
 
-	dev = iio_priv(indio_dev);
-	dev->regmap = regmap;
-
 	dev->spi = spi;
+	dev->page_select = 0;
 
 	ret = ad7293_init(dev);
 	if (ret)

@@ -333,7 +333,7 @@ static int ad7293_spi_read(struct ad7293_dev *dev, unsigned int reg,
 	dev->data[2] = 0x0;
 
 	t.tx_buf = &dev->data[0];
-	t.rx_buf = &dev->data[1];
+	t.rx_buf = &dev->data[0];
 	t.len = 1 + AD7293_TRANSF_LEN(reg);
 	printk("transfer len %d", 1 + AD7293_TRANSF_LEN(reg));
 	ret = spi_sync_transfer(dev->spi, &t, 1);

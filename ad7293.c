@@ -297,6 +297,18 @@
 #define AD7293_REG_RSX_MON_ALERT1		(AD7293_R2B | AD7293_PAGE(0x12) | 0x19)
 #define AD7293_REG_INT_LIMIT_AVSS_ALERT1	(AD7293_R2B | AD7293_PAGE(0x12) | 0x1A)
 
+enum ad7293_adc_range {
+	AD7293_4XREF_ADC = 0,
+	AD7293_2XREF_ADC = 1,
+	AD7293_1XREF_ADC = 3,
+};
+
+enum ad7293_dac_unipolar_offset {
+	AD7293_DAC_0V_5V,
+	AD7293_DAC_2V5_5V,
+	AD7293_DAC_5V_10V
+};
+
 struct ad7293_dev {
 	struct spi_device	*spi;
 	/* Protect against concurrent accesses to the device */
@@ -384,7 +396,7 @@ static int ad7293_spi_update_bits(struct ad7293_dev *dev, unsigned int reg,
 	return ad7293_spi_write(dev, reg, temp);
 }
 
-static int ad7293_adc_get_scale(struct ad7293_dev *dev, unsigned int ch, unsigned int *range)
+static int ad7293_adc_get_scale(struct ad7293_dev *dev, unsigned int ch, enum ad7293_adc_range *range)
 {
 	int ret;
 	unsigned int data;
@@ -404,7 +416,7 @@ static int ad7293_adc_get_scale(struct ad7293_dev *dev, unsigned int ch, unsigne
 	return 0;
 }
 
-static int ad7293_adc_set_scale(struct ad7293_dev *dev, unsigned int ch, unsigned int range)
+static int ad7293_adc_set_scale(struct ad7293_dev *dev, unsigned int ch, enum ad7293_adc_range range)
 {
 	int ret;
 	unsigned int ch_msk = 1 << ch;

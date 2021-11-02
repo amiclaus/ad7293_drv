@@ -10,124 +10,120 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/iio/iio.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 
-#define AD7293_READ				BIT(7)
-#define AD7293_WRITE				(0 << 7)
-#define AD7293_ADDR(x)				((x) & 0xFF)
-
-#define AD7293_R1B				BIT(16)
-#define AD7293_R2B				(2 << 16)
-#define AD7293_TRANSF_LEN(x)			((x) >> 16)
-
-#define AD7293_PAGE(x)				((x) << 8)
-#define AD7293_PAGE_ADDR(x)			(((x) >> 8) & 0xFF)
-#define AD7293_REG_ADDR(x)			((x) & 0xFF)
-
-#define AD7293_CHIP_ID				0x18
-
 /* AD7293 Register Map Common */
-#define AD7293_REG_NO_OP			(AD7293_R1B | AD7293_PAGE(0x00) | 0x00)
-#define AD7293_REG_PAGE_SELECT			(AD7293_R1B | AD7293_PAGE(0x00) | 0x01)
-#define AD7293_REG_CONV_CMD			(AD7293_R2B | AD7293_PAGE(0x00) | 0x02)
-#define AD7293_REG_RESULT			(AD7293_R1B | AD7293_PAGE(0x00) | 0x03)
-#define AD7293_REG_DAC_EN			(AD7293_R1B | AD7293_PAGE(0x00) | 0x04)
-#define AD7293_REG_DEVICE_ID			(AD7293_R2B | AD7293_PAGE(0x00) | 0x0C)
-#define AD7293_REG_SOFT_RESET			(AD7293_R2B | AD7293_PAGE(0x00) | 0x0F)
+#define AD7293_REG_NO_OP			(AD7293_R1B | AD7293_PAGE(0x0) | 0x0)
+#define AD7293_REG_PAGE_SELECT			(AD7293_R1B | AD7293_PAGE(0x0) | 0x1)
+#define AD7293_REG_CONV_CMD			(AD7293_R2B | AD7293_PAGE(0x0) | 0x2)
+#define AD7293_REG_RESULT			(AD7293_R1B | AD7293_PAGE(0x0) | 0x3)
+#define AD7293_REG_DAC_EN			(AD7293_R1B | AD7293_PAGE(0x0) | 0x4)
+#define AD7293_REG_DEVICE_ID			(AD7293_R2B | AD7293_PAGE(0x0) | 0xC)
+#define AD7293_REG_SOFT_RESET			(AD7293_R2B | AD7293_PAGE(0x0) | 0xF)
 
-/* AD7293 Register Map Page 0x00 */
-#define AD7293_REG_VIN0				(AD7293_R2B | AD7293_PAGE(0x00) | 0x10)
-#define AD7293_REG_VIN1				(AD7293_R2B | AD7293_PAGE(0x00) | 0x11)
-#define AD7293_REG_VIN2				(AD7293_R2B | AD7293_PAGE(0x00) | 0x12)
-#define AD7293_REG_VIN3				(AD7293_R2B | AD7293_PAGE(0x00) | 0x13)
-#define AD7293_REG_TSENSE_INT			(AD7293_R2B | AD7293_PAGE(0x00) | 0x20)
-#define AD7293_REG_TSENSE_D0			(AD7293_R2B | AD7293_PAGE(0x00) | 0x21)
-#define AD7293_REG_TSENSE_D1			(AD7293_R2B | AD7293_PAGE(0x00) | 0x22)
-#define AD7293_REG_ISENSE_0			(AD7293_R2B | AD7293_PAGE(0x00) | 0x28)
-#define AD7293_REG_ISENSE_1			(AD7293_R2B | AD7293_PAGE(0x00) | 0x29)
-#define AD7293_REG_ISENSE_2			(AD7293_R2B | AD7293_PAGE(0x00) | 0x2A)
-#define AD7293_REG_ISENSE_3			(AD7293_R2B | AD7293_PAGE(0x00) | 0x2B)
-#define AD7293_REG_UNI_VOUT0			(AD7293_R2B | AD7293_PAGE(0x00) | 0x30)
-#define AD7293_REG_UNI_VOUT1			(AD7293_R2B | AD7293_PAGE(0x00) | 0x31)
-#define AD7293_REG_UNI_VOUT2			(AD7293_R2B | AD7293_PAGE(0x00) | 0x32)
-#define AD7293_REG_UNI_VOUT3			(AD7293_R2B | AD7293_PAGE(0x00) | 0x33)
-#define AD7293_REG_BI_VOUT0			(AD7293_R2B | AD7293_PAGE(0x00) | 0x34)
-#define AD7293_REG_BI_VOUT1			(AD7293_R2B | AD7293_PAGE(0x00) | 0x35)
-#define AD7293_REG_BI_VOUT2			(AD7293_R2B | AD7293_PAGE(0x00) | 0x36)
-#define AD7293_REG_BI_VOUT3			(AD7293_R2B | AD7293_PAGE(0x00) | 0x37)
+/* AD7293 Register Map Page 0x0 */
+#define AD7293_REG_VIN0				(AD7293_R2B | AD7293_PAGE(0x0) | 0x10)
+#define AD7293_REG_VIN1				(AD7293_R2B | AD7293_PAGE(0x0) | 0x11)
+#define AD7293_REG_VIN2				(AD7293_R2B | AD7293_PAGE(0x0) | 0x12)
+#define AD7293_REG_VIN3				(AD7293_R2B | AD7293_PAGE(0x0) | 0x13)
+#define AD7293_REG_TSENSE_INT			(AD7293_R2B | AD7293_PAGE(0x0) | 0x20)
+#define AD7293_REG_TSENSE_D0			(AD7293_R2B | AD7293_PAGE(0x0) | 0x21)
+#define AD7293_REG_TSENSE_D1			(AD7293_R2B | AD7293_PAGE(0x0) | 0x22)
+#define AD7293_REG_ISENSE_0			(AD7293_R2B | AD7293_PAGE(0x0) | 0x28)
+#define AD7293_REG_ISENSE_1			(AD7293_R2B | AD7293_PAGE(0x0) | 0x29)
+#define AD7293_REG_ISENSE_2			(AD7293_R2B | AD7293_PAGE(0x0) | 0x2A)
+#define AD7293_REG_ISENSE_3			(AD7293_R2B | AD7293_PAGE(0x0) | 0x2B)
+#define AD7293_REG_UNI_VOUT0			(AD7293_R2B | AD7293_PAGE(0x0) | 0x30)
+#define AD7293_REG_UNI_VOUT1			(AD7293_R2B | AD7293_PAGE(0x0) | 0x31)
+#define AD7293_REG_UNI_VOUT2			(AD7293_R2B | AD7293_PAGE(0x0) | 0x32)
+#define AD7293_REG_UNI_VOUT3			(AD7293_R2B | AD7293_PAGE(0x0) | 0x33)
+#define AD7293_REG_BI_VOUT0			(AD7293_R2B | AD7293_PAGE(0x0) | 0x34)
+#define AD7293_REG_BI_VOUT1			(AD7293_R2B | AD7293_PAGE(0x0) | 0x35)
+#define AD7293_REG_BI_VOUT2			(AD7293_R2B | AD7293_PAGE(0x0) | 0x36)
+#define AD7293_REG_BI_VOUT3			(AD7293_R2B | AD7293_PAGE(0x0) | 0x37)
 
-/* AD7293 Register Map Page 0x01 */
-#define AD7293_REG_AVDD				(AD7293_R2B | AD7293_PAGE(0x01) | 0x10)
-#define AD7293_REG_DACVDD_UNI			(AD7293_R2B | AD7293_PAGE(0x01) | 0x11)
-#define AD7293_REG_DACVDD_BI			(AD7293_R2B | AD7293_PAGE(0x01) | 0x12)
-#define AD7293_REG_AVSS				(AD7293_R2B | AD7293_PAGE(0x01) | 0x13)
-#define AD7293_REG_BI_VOUT0_MON			(AD7293_R2B | AD7293_PAGE(0x01) | 0x14)
-#define AD7293_REG_BI_VIOU1_MON			(AD7293_R2B | AD7293_PAGE(0x01) | 0x15)
-#define AD7293_REG_BI_VOUT2_MON			(AD7293_R2B | AD7293_PAGE(0x01) | 0x16)
-#define AD7293_REG_BI_VOUT3_MON			(AD7293_R2B | AD7293_PAGE(0x01) | 0x17)
-#define AD7293_REG_RS0_MON			(AD7293_R2B | AD7293_PAGE(0x01) | 0x28)
-#define AD7293_REG_RS1_MON			(AD7293_R2B | AD7293_PAGE(0x01) | 0x29)
-#define AD7293_REG_RS2_MON			(AD7293_R2B | AD7293_PAGE(0x01) | 0x2A)
-#define AD7293_REG_RS3_MON			(AD7293_R2B | AD7293_PAGE(0x01) | 0x2B)
+/* AD7293 Register Map Page 0x1 */
+#define AD7293_REG_AVDD				(AD7293_R2B | AD7293_PAGE(0x1) | 0x10)
+#define AD7293_REG_DACVDD_UNI			(AD7293_R2B | AD7293_PAGE(0x1) | 0x11)
+#define AD7293_REG_DACVDD_BI			(AD7293_R2B | AD7293_PAGE(0x1) | 0x12)
+#define AD7293_REG_AVSS				(AD7293_R2B | AD7293_PAGE(0x1) | 0x13)
+#define AD7293_REG_BI_VOUT0_MON			(AD7293_R2B | AD7293_PAGE(0x1) | 0x14)
+#define AD7293_REG_BI_VIOU1_MON			(AD7293_R2B | AD7293_PAGE(0x1) | 0x15)
+#define AD7293_REG_BI_VOUT2_MON			(AD7293_R2B | AD7293_PAGE(0x1) | 0x16)
+#define AD7293_REG_BI_VOUT3_MON			(AD7293_R2B | AD7293_PAGE(0x1) | 0x17)
+#define AD7293_REG_RS0_MON			(AD7293_R2B | AD7293_PAGE(0x1) | 0x28)
+#define AD7293_REG_RS1_MON			(AD7293_R2B | AD7293_PAGE(0x1) | 0x29)
+#define AD7293_REG_RS2_MON			(AD7293_R2B | AD7293_PAGE(0x1) | 0x2A)
+#define AD7293_REG_RS3_MON			(AD7293_R2B | AD7293_PAGE(0x1) | 0x2B)
 
-/* AD7293 Register Map Page 0x02 */
-#define AD7293_REG_DIGITAL_OUT_EN		(AD7293_R2B | AD7293_PAGE(0x02) | 0x11)
-#define AD7293_REG_DIGITAL_INOUT_FUNC		(AD7293_R2B | AD7293_PAGE(0x02) | 0x12)
-#define AD7293_REG_DIGITAL_FUNC_POL		(AD7293_R2B | AD7293_PAGE(0x02) | 0x13)
-#define AD7293_REG_GENERAL			(AD7293_R2B | AD7293_PAGE(0x02) | 0x14)
-#define AD7293_REG_VINX_RANGE0			(AD7293_R2B | AD7293_PAGE(0x02) | 0x15)
-#define AD7293_REG_VINX_RANGE1			(AD7293_R2B | AD7293_PAGE(0x02) | 0x16)
-#define AD7293_REG_VINX_DIFF_SE			(AD7293_R2B | AD7293_PAGE(0x02) | 0x17)
-#define AD7293_REG_VINX_FILTER			(AD7293_R2B | AD7293_PAGE(0x02) | 0x18)
-#define AD7293_REG_BG_EN			(AD7293_R2B | AD7293_PAGE(0x02) | 0x19)
-#define AD7293_REG_CONV_DELAY			(AD7293_R2B | AD7293_PAGE(0x02) | 0x1A)
-#define AD7293_REG_TSENSE_BG_EN			(AD7293_R2B | AD7293_PAGE(0x02) | 0x1B)
-#define AD7293_REG_ISENSE_BG_EN			(AD7293_R2B | AD7293_PAGE(0x02) | 0x1C)
-#define AD7293_REG_ISENSE_GAIN			(AD7293_R2B | AD7293_PAGE(0x02) | 0x1D)
-#define AD7293_REG_DAC_SNOOZE_O			(AD7293_R2B | AD7293_PAGE(0x02) | 0x1F)
-#define AD7293_REG_DAC_SNOOZE_1			(AD7293_R2B | AD7293_PAGE(0x02) | 0x20)
-#define AD7293_REG_RSX_MON_BG_EN		(AD7293_R2B | AD7293_PAGE(0x02) | 0x23)
-#define AD7293_REG_INTEGR_CL			(AD7293_R2B | AD7293_PAGE(0x02) | 0x28)
-#define AD7293_REG_PA_ON_CTRL			(AD7293_R2B | AD7293_PAGE(0x02) | 0x29)
-#define AD7293_REG_RAMP_TIME_0			(AD7293_R2B | AD7293_PAGE(0x02) | 0x2A)
-#define AD7293_REG_RAMP_TIME_1			(AD7293_R2B | AD7293_PAGE(0x02) | 0x2B)
-#define AD7293_REG_RAMP_TIME_2			(AD7293_R2B | AD7293_PAGE(0x02) | 0x2C)
-#define AD7293_REG_RAMP_TIME_3			(AD7293_R2B | AD7293_PAGE(0x02) | 0x2D)
-#define AD7293_REG_CL_FR_IT			(AD7293_R2B | AD7293_PAGE(0x02) | 0x2E)
-#define AD7293_REG_INTX_AVSS_AVDD		(AD7293_R2B | AD7293_PAGE(0x02) | 0x2F)
+/* AD7293 Register Map Page 0x2 */
+#define AD7293_REG_DIGITAL_OUT_EN		(AD7293_R2B | AD7293_PAGE(0x2) | 0x11)
+#define AD7293_REG_DIGITAL_INOUT_FUNC		(AD7293_R2B | AD7293_PAGE(0x2) | 0x12)
+#define AD7293_REG_DIGITAL_FUNC_POL		(AD7293_R2B | AD7293_PAGE(0x2) | 0x13)
+#define AD7293_REG_GENERAL			(AD7293_R2B | AD7293_PAGE(0x2) | 0x14)
+#define AD7293_REG_VINX_RANGE0			(AD7293_R2B | AD7293_PAGE(0x2) | 0x15)
+#define AD7293_REG_VINX_RANGE1			(AD7293_R2B | AD7293_PAGE(0x2) | 0x16)
+#define AD7293_REG_VINX_DIFF_SE			(AD7293_R2B | AD7293_PAGE(0x2) | 0x17)
+#define AD7293_REG_VINX_FILTER			(AD7293_R2B | AD7293_PAGE(0x2) | 0x18)
+#define AD7293_REG_BG_EN			(AD7293_R2B | AD7293_PAGE(0x2) | 0x19)
+#define AD7293_REG_CONV_DELAY			(AD7293_R2B | AD7293_PAGE(0x2) | 0x1A)
+#define AD7293_REG_TSENSE_BG_EN			(AD7293_R2B | AD7293_PAGE(0x2) | 0x1B)
+#define AD7293_REG_ISENSE_BG_EN			(AD7293_R2B | AD7293_PAGE(0x2) | 0x1C)
+#define AD7293_REG_ISENSE_GAIN			(AD7293_R2B | AD7293_PAGE(0x2) | 0x1D)
+#define AD7293_REG_DAC_SNOOZE_O			(AD7293_R2B | AD7293_PAGE(0x2) | 0x1F)
+#define AD7293_REG_DAC_SNOOZE_1			(AD7293_R2B | AD7293_PAGE(0x2) | 0x20)
+#define AD7293_REG_RSX_MON_BG_EN		(AD7293_R2B | AD7293_PAGE(0x2) | 0x23)
+#define AD7293_REG_INTEGR_CL			(AD7293_R2B | AD7293_PAGE(0x2) | 0x28)
+#define AD7293_REG_PA_ON_CTRL			(AD7293_R2B | AD7293_PAGE(0x2) | 0x29)
+#define AD7293_REG_RAMP_TIME_0			(AD7293_R2B | AD7293_PAGE(0x2) | 0x2A)
+#define AD7293_REG_RAMP_TIME_1			(AD7293_R2B | AD7293_PAGE(0x2) | 0x2B)
+#define AD7293_REG_RAMP_TIME_2			(AD7293_R2B | AD7293_PAGE(0x2) | 0x2C)
+#define AD7293_REG_RAMP_TIME_3			(AD7293_R2B | AD7293_PAGE(0x2) | 0x2D)
+#define AD7293_REG_CL_FR_IT			(AD7293_R2B | AD7293_PAGE(0x2) | 0x2E)
+#define AD7293_REG_INTX_AVSS_AVDD		(AD7293_R2B | AD7293_PAGE(0x2) | 0x2F)
 
-/* AD7293 Register Map Page 0x03 */
-#define AD7293_REG_VINX_SEQ			(AD7293_R2B | AD7293_PAGE(0x03) | 0x10)
-#define AD7293_REG_ISENSEX_TSENSEX_SEQ		(AD7293_R2B | AD7293_PAGE(0x03) | 0x11)
-#define AD7293_REG_RSX_MON_BI_VOUTX_SEQ		(AD7293_R2B | AD7293_PAGE(0x03) | 0x12)
+/* AD7293 Register Map Page 0x3 */
+#define AD7293_REG_VINX_SEQ			(AD7293_R2B | AD7293_PAGE(0x3) | 0x10)
+#define AD7293_REG_ISENSEX_TSENSEX_SEQ		(AD7293_R2B | AD7293_PAGE(0x3) | 0x11)
+#define AD7293_REG_RSX_MON_BI_VOUTX_SEQ		(AD7293_R2B | AD7293_PAGE(0x3) | 0x12)
 
-/* AD7293 Register Map Page 0x0E */
-#define AD7293_REG_VIN0_OFFSET			(AD7293_R1B | AD7293_PAGE(0x0E) | 0x10)
-#define AD7293_REG_VIN1_OFFSET			(AD7293_R1B | AD7293_PAGE(0x0E) | 0x11)
-#define AD7293_REG_VIN2_OFFSET			(AD7293_R1B | AD7293_PAGE(0x0E) | 0x12)
-#define AD7293_REG_VIN3_OFFSET			(AD7293_R1B | AD7293_PAGE(0x0E) | 0x13)
-#define AD7293_REG_TSENSE_INT_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x20)
-#define AD7293_REG_TSENSE_D0_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x21)
-#define AD7293_REG_TSENSE_D1_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x22)
-#define AD7293_REG_ISENSE0_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x28)
-#define AD7293_REG_ISENSE1_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x29)
-#define AD7293_REG_ISENSE2_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x2A)
-#define AD7293_REG_ISENSE3_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x2B)
-#define AD7293_REG_UNI_VOUT0_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x30)
-#define AD7293_REG_UNI_VOUT1_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x31)
-#define AD7293_REG_UNI_VOUT2_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x32)
-#define AD7293_REG_UNI_VOUT3_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x33)
-#define AD7293_REG_BI_VOUT0_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x34)
-#define AD7293_REG_BI_VOUT1_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x35)
-#define AD7293_REG_BI_VOUT2_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x36)
-#define AD7293_REG_BI_VOUT3_OFFSET		(AD7293_R1B | AD7293_PAGE(0x0E) | 0x37)
+/* AD7293 Register Map Page 0xE */
+#define AD7293_REG_VIN0_OFFSET			(AD7293_R1B | AD7293_PAGE(0xE) | 0x10)
+#define AD7293_REG_VIN1_OFFSET			(AD7293_R1B | AD7293_PAGE(0xE) | 0x11)
+#define AD7293_REG_VIN2_OFFSET			(AD7293_R1B | AD7293_PAGE(0xE) | 0x12)
+#define AD7293_REG_VIN3_OFFSET			(AD7293_R1B | AD7293_PAGE(0xE) | 0x13)
+#define AD7293_REG_TSENSE_INT_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x20)
+#define AD7293_REG_TSENSE_D0_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x21)
+#define AD7293_REG_TSENSE_D1_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x22)
+#define AD7293_REG_ISENSE0_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x28)
+#define AD7293_REG_ISENSE1_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x29)
+#define AD7293_REG_ISENSE2_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x2A)
+#define AD7293_REG_ISENSE3_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x2B)
+#define AD7293_REG_UNI_VOUT0_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x30)
+#define AD7293_REG_UNI_VOUT1_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x31)
+#define AD7293_REG_UNI_VOUT2_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x32)
+#define AD7293_REG_UNI_VOUT3_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x33)
+#define AD7293_REG_BI_VOUT0_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x34)
+#define AD7293_REG_BI_VOUT1_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x35)
+#define AD7293_REG_BI_VOUT2_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x36)
+#define AD7293_REG_BI_VOUT3_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x37)
 
-/* AD7293 DAC Offset Register Bit Definition */
+
+/* AD7293 Miscellaneous Definitions */
+#define AD7293_READ				BIT(7)
+#define AD7293_R1B				BIT(16)
+#define AD7293_R2B				BIT(17)
+#define AD7293_TRANSF_LEN_MSK			GENMASK(17,16)
+#define AD7293_PAGE_ADDR_MSK			GENMASK(15,8)
+#define AD7293_PAGE(x)				FIELD_PREP(AD7293_PAGE_ADDR_MSK, x)
+#define AD7293_REG_ADDR_MSK			GENMASK(7, 0)
 #define AD7293_REG_VOUT_OFFSET_MSK		GENMASK(5, 4)
 #define AD7293_REG_DATA_RAW_MSK			GENMASK(15, 4)
 #define AD7293_REG_VINX_RANGE_GET_CH_MSK(x, ch)	(((x) >> (ch)) & 0x1)
 #define AD7293_REG_VINX_RANGE_SET_CH_MSK(x, ch)	(((x) & 0x1) << (ch))
+#define AD7293_CHIP_ID				0x18
 
 enum ad7293_ch_type {
 	AD7293_ADC_VINX,
@@ -143,19 +139,29 @@ static const int isense_gain_table[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 static const int adc_range_table[] = {0, 1, 2, 3};
 
 struct ad7293_state {
-	struct spi_device	*spi;
+	struct spi_device *spi;
 	/* Protect against concurrent accesses to the device */
-	struct mutex		lock;
+	struct mutex lock;
 	u8 page_select;
 	u8 data[3] ____cacheline_aligned;
 };
 
-static int ad7293_page_select(struct ad7293_state *st, u8 page_nr)
+static int ad7293_page_select(struct ad7293_state *st, unsigned int reg)
 {
-	st->data[0] = AD7293_REG_ADDR(AD7293_REG_PAGE_SELECT);
-	st->data[1] = page_nr;
+	int ret;
 
-	return spi_write(st->spi, &st->data[0], 2);
+	if (st->page_select != FIELD_GET(AD7293_PAGE_ADDR_MSK, reg)) {
+		st->data[0] = FIELD_GET(AD7293_REG_ADDR_MSK, AD7293_REG_PAGE_SELECT);
+		st->data[1] = FIELD_GET(AD7293_PAGE_ADDR_MSK, reg);
+
+		ret = spi_write(st->spi, &st->data[0], 2);
+		if (ret)
+			return ret;
+
+		st->page_select = FIELD_GET(AD7293_PAGE_ADDR_MSK, reg);
+	}
+
+	return 0;
 }
 
 static int __ad7293_spi_read(struct ad7293_state *st, unsigned int reg,
@@ -164,27 +170,23 @@ static int __ad7293_spi_read(struct ad7293_state *st, unsigned int reg,
 	int ret;
 	struct spi_transfer t = {0};
 
-	if (st->page_select != AD7293_PAGE_ADDR(reg)) {
-		ret = ad7293_page_select(st, AD7293_PAGE_ADDR(reg));
-		if (ret)
-			return ret;
+	ret = ad7293_page_select(st, reg);
+	if (ret)
+		return ret;
 
-		st->page_select = AD7293_PAGE_ADDR(reg);
-	}
-
-	st->data[0] = AD7293_READ | AD7293_REG_ADDR(reg);
+	st->data[0] = AD7293_READ | FIELD_GET(AD7293_REG_ADDR_MSK, reg);
 	st->data[1] = 0x0;
 	st->data[2] = 0x0;
 
 	t.tx_buf = &st->data[0];
 	t.rx_buf = &st->data[0];
-	t.len = 1 + AD7293_TRANSF_LEN(reg);
+	t.len = 1 + FIELD_GET(AD7293_TRANSF_LEN_MSK, reg);
 
 	ret = spi_sync_transfer(st->spi, &t, 1);
 	if (ret)
 		return ret;
 
-	*val = ((st->data[1] << 8) | st->data[2]) >> (8 * (2 - AD7293_TRANSF_LEN(reg)));
+	*val = ((st->data[1] << 8) | st->data[2]) >> (8 * (2 - FIELD_GET(AD7293_TRANSF_LEN_MSK, reg)));
 
 	return 0;
 }
@@ -206,24 +208,20 @@ static int __ad7293_spi_write(struct ad7293_state *st, unsigned int reg,
 {
 	int ret;
 
-	if (st->page_select != AD7293_PAGE_ADDR(reg)) {
-		ret = ad7293_page_select(st, AD7293_PAGE_ADDR(reg));
-		if (ret)
-			return ret;
+	ret = ad7293_page_select(st, reg);
+	if (ret)
+		return ret;
 
-		st->page_select = AD7293_PAGE_ADDR(reg);
-	}
+	st->data[0] = FIELD_GET(AD7293_REG_ADDR_MSK, reg);
 
-	st->data[0] = AD7293_WRITE | AD7293_REG_ADDR(reg);
-
-	if (AD7293_TRANSF_LEN(reg) == 1) {
+	if (FIELD_GET(AD7293_TRANSF_LEN_MSK, reg) == 1) {
 		st->data[1] = val;
 	} else {
 		st->data[1] = val >> 8;
 		st->data[2] = val;
 	}
 
-	return spi_write(st->spi, &st->data[0], 1 + AD7293_TRANSF_LEN(reg));
+	return spi_write(st->spi, &st->data[0], 1 + FIELD_GET(AD7293_TRANSF_LEN_MSK, reg));
 }
 
 static int ad7293_spi_write(struct ad7293_state *st, unsigned int reg,
@@ -440,6 +438,8 @@ static int ad7293_ch_read_raw(struct ad7293_state *st, enum ad7293_ch_type type,
 
 	ret = __ad7293_spi_read(st, reg_rd, raw);
 
+	*raw = FIELD_GET(AD7293_REG_DATA_RAW_MSK, *raw);
+
 exit:
 	mutex_unlock(&st->lock);
 
@@ -479,7 +479,7 @@ static int ad7293_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		*val = FIELD_GET(AD7293_REG_DATA_RAW_MSK, data);
+		*val = data;
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_OFFSET:
@@ -505,7 +505,6 @@ static int ad7293_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-
 		if (ret)
 			return ret;
 

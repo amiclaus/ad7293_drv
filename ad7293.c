@@ -9,9 +9,11 @@
 #include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/gpio/consumer.h>
 #include <linux/iio/iio.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
 #include <asm/unaligned.h>
@@ -152,6 +154,9 @@ struct ad7293_state {
 	struct spi_device *spi;
 	/* Protect against concurrent accesses to the device, page selection and data content */
 	struct mutex lock;
+	struct gpio_desc *gpio_reset;
+	struct regulator *reg_avdd;
+	struct regulator *reg_vdrive;
 	u8 page_select;
 	u8 data[3] ____cacheline_aligned;
 };
@@ -720,20 +725,104 @@ static const struct iio_chan_spec ad7293_channels[] = {
 	AD7293_CHAN_DAC(7)
 };
 
+static int ad7293_soft_reset(struct ad7293_state *st)
+{
+	int ret;
+
+	ret = __ad7293_spi_write(st, AD7293_REG_SOFT_RESET, 0x7293);
+	if (ret)
+		return ret;
+
+	return __ad7293_spi_write(st, AD7293_REG_SOFT_RESET, 0x0000);
+}
+
+static int ad7293_reset(struct ad7293_state *st)
+{
+	if (st->gpio_reset) {
+		gpiod_set_value(st->gpio_reset, 0);
+		usleep_range(100, 1000);
+		gpiod_set_value(st->gpio_reset, 1);
+		usleep_range(100, 1000);
+
+		return 0;
+	}
+
+	/* Perform a software reset */
+	return ad7293_soft_reset(st);
+}
+
+static int ad7293_properties_parse(struct ad7293_state *st)
+{
+	struct spi_device *spi = st->spi;
+
+	st->gpio_reset = devm_gpiod_get_optional(&st->spi->dev, "reset",
+						 GPIOD_OUT_HIGH);
+	if (IS_ERR(st->gpio_reset))
+		return dev_err_probe(&spi->dev, PTR_ERR(st->gpio_reset),
+				     "failed to get the reset GPIO\n");
+
+	st->reg_avdd = devm_regulator_get(&spi->dev, "avdd");
+	if (IS_ERR(st->reg_avdd))
+		return dev_err_probe(&spi->dev, PTR_ERR(st->reg_avdd),
+				     "failed to get the AVDD voltage\n");
+
+	st->reg_vdrive = devm_regulator_get(&spi->dev, "vdrive");
+	if (IS_ERR(st->reg_vdrive))
+		return dev_err_probe(&spi->dev, PTR_ERR(st->reg_vdrive),
+				     "failed to get the VDRIVE voltage\n");
+
+	return 0;
+}
+
+static void ad7293_reg_disable(void *data)
+{
+	regulator_disable(data);
+}
+
 static int ad7293_init(struct ad7293_state *st)
 {
 	int ret;
 	u16 chip_id;
 	struct spi_device *spi = st->spi;
+	unsigned int supply;
 
-	/* Perform software reset */
-	ret = __ad7293_spi_write(st, AD7293_REG_SOFT_RESET, 0x7293);
+	ret = ad7293_properties_parse(st);
 	if (ret)
 		return ret;
 
-	ret = __ad7293_spi_write(st, AD7293_REG_SOFT_RESET, 0x0000);
+	ret = ad7293_reset(st);
 	if (ret)
 		return ret;
+
+	ret = regulator_enable(st->reg_avdd);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to enable specified AVDD Voltage!\n");
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(&spi->dev, ad7293_reg_disable,
+				       st->reg_avdd);
+	if (ret)
+		return ret;
+
+	ret = regulator_enable(st->reg_vdrive);
+	if (ret) {
+		dev_err(&spi->dev, "Failed to enable specified VDRIVE Voltage!\n");
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(&spi->dev, ad7293_reg_disable,
+				       st->reg_vdrive);
+	if (ret)
+		return ret;
+
+	supply = regulator_get_voltage(st->reg_avdd);
+	if (supply > 5500000 || supply < 4500000)
+		return -EINVAL;
+
+	supply = regulator_get_voltage(st->reg_vdrive);
+	if (supply > 5500000 || supply < 1700000)
+		return -EINVAL;
 
 	/* Check Chip ID */
 	ret = __ad7293_spi_read(st, AD7293_REG_DEVICE_ID, &chip_id);

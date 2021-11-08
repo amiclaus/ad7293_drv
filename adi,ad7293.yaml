@@ -23,15 +23,27 @@ properties:
     enum:
       - adi,ad7293
 
+  avdd-supply:
+    description:
+      AVDD voltage regulator.
+
+  vdrive-supply:
+    description:
+      VDRIVE voltage regulator.
+
   reg:
     maxItems: 1
 
   spi-max-frequency:
     maximum: 1000000
 
+  reset-gpios: true
+
 required:
   - compatible
   - reg
+  - avdd-supply
+  - vdrive-supply
 
 additionalProperties: false
 
@@ -44,6 +56,9 @@ examples:
         compatible = "adi,ad7293";
         reg = <0>;
         spi-max-frequency = <1000000>;
+        avdd-supply = <&avdd>;
+        vdrive-supply = <&vdrive>;
+        reset-gpios = <&gpio 10 0>;
       };
     };
 ...

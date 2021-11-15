@@ -308,7 +308,7 @@ exit:
 static int ad7293_adc_set_scale(struct ad7293_state *st, unsigned int ch, u16 range)
 {
 	int ret;
-	unsigned int ch_msk = 1 << ch;
+	unsigned int ch_msk = BIT(ch);
 
 	mutex_lock(&st->lock);
 	ret = __ad7293_spi_update_bits(st, AD7293_REG_VINX_RANGE1, ch_msk,
@@ -335,8 +335,8 @@ static int ad7293_get_offset(struct ad7293_state *st, unsigned int ch, u16 *offs
 		return ad7293_spi_read(st, AD7293_REG_ISENSE0_OFFSET + (ch - 7), offset);
 	else if (ch <= AD7293_VOUT_MAX_OFFSET_CH)
 		return ad7293_spi_read(st, AD7293_REG_UNI_VOUT0_OFFSET + (ch - 11), offset);
-	else
-		return -EINVAL;
+
+	return -EINVAL;
 }
 
 static int ad7293_set_offset(struct ad7293_state *st, unsigned int ch, u16 offset)
@@ -351,8 +351,8 @@ static int ad7293_set_offset(struct ad7293_state *st, unsigned int ch, u16 offse
 		return ad7293_spi_update_bits(st, AD7293_REG_UNI_VOUT0_OFFSET + (ch - AD7293_VOUT_MIN_OFFSET_CH),
 						AD7293_REG_VOUT_OFFSET_MSK,
 						FIELD_PREP(AD7293_REG_VOUT_OFFSET_MSK, offset));
-	else
-		return -EINVAL;
+
+	return -EINVAL;
 }
 
 static int ad7293_isense_set_scale(struct ad7293_state *st, unsigned int ch, u16 gain)
@@ -381,7 +381,7 @@ static int ad7293_dac_write_raw(struct ad7293_state *st, unsigned int ch, u16 ra
 
 	mutex_lock(&st->lock);
 
-	ret = __ad7293_spi_update_bits(st, AD7293_REG_DAC_EN, 1 << ch, 1 << ch);
+	ret = __ad7293_spi_update_bits(st, AD7293_REG_DAC_EN, BIT(ch), BIT(ch));
 	if (ret)
 		goto exit;
 
@@ -404,19 +404,19 @@ static int ad7293_ch_read_raw(struct ad7293_state *st, enum ad7293_ch_type type,
 	case AD7293_ADC_VINX:
 		reg_wr = AD7293_REG_VINX_SEQ;
 		reg_rd = AD7293_REG_VIN0 + ch;
-		data_wr = 1 << ch;
+		data_wr = BIT(ch);
 
 		break;
 	case AD7293_ADC_TSENSE:
 		reg_wr = AD7293_REG_ISENSEX_TSENSEX_SEQ;
 		reg_rd = AD7293_REG_TSENSE_INT + ch;
-		data_wr = 1 << ch;
+		data_wr = BIT(ch);
 
 		break;
 	case AD7293_ADC_ISENSE:
 		reg_wr = AD7293_REG_ISENSEX_TSENSEX_SEQ;
 		reg_rd = AD7293_REG_ISENSE_0 + ch;
-		data_wr = (1 << ch) << 8;
+		data_wr = BIT(ch) << 8;
 
 		break;
 	case AD7293_DAC:
@@ -431,13 +431,13 @@ static int ad7293_ch_read_raw(struct ad7293_state *st, enum ad7293_ch_type type,
 
 	if (type != AD7293_DAC) {
 		if (type == AD7293_ADC_TSENSE) {
-			ret = __ad7293_spi_write(st, AD7293_REG_TSENSE_BG_EN, 1 << ch);
+			ret = __ad7293_spi_write(st, AD7293_REG_TSENSE_BG_EN, BIT(ch));
 			if (ret)
 				goto exit;
 
 			usleep_range(9000, 9900);
 		} else if (type == AD7293_ADC_ISENSE) {
-			ret = __ad7293_spi_write(st, AD7293_REG_ISENSE_BG_EN, 1 << ch);
+			ret = __ad7293_spi_write(st, AD7293_REG_ISENSE_BG_EN, BIT(ch));
 			if (ret)
 				goto exit;
 

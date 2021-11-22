@@ -183,7 +183,10 @@ static int __ad7293_spi_read(struct ad7293_state *st, unsigned int reg,
 			     u16 *val)
 {
 	int ret;
+	unsigned int length;
 	struct spi_transfer t = {0};
+
+	length = FIELD_GET(AD7293_TRANSF_LEN_MSK, reg);
 
 	ret = ad7293_page_select(st, reg);
 	if (ret)
@@ -195,13 +198,13 @@ static int __ad7293_spi_read(struct ad7293_state *st, unsigned int reg,
 
 	t.tx_buf = &st->data[0];
 	t.rx_buf = &st->data[0];
-	t.len = 1 + FIELD_GET(AD7293_TRANSF_LEN_MSK, reg);
+	t.len = length + 1;
 
 	ret = spi_sync_transfer(st->spi, &t, 1);
 	if (ret)
 		return ret;
 
-	if (FIELD_GET(AD7293_TRANSF_LEN_MSK, reg) == 1)
+	if (length == 1)
 		*val = st->data[1];
 	else
 		*val = get_unaligned_be16(&st->data[1]);
@@ -225,7 +228,9 @@ static int __ad7293_spi_write(struct ad7293_state *st, unsigned int reg,
 			      u16 val)
 {
 	int ret;
-	unsigned int length = 1 + FIELD_GET(AD7293_TRANSF_LEN_MSK, reg);
+	unsigned int length;
+
+	length = FIELD_GET(AD7293_TRANSF_LEN_MSK, reg);
 
 	ret = ad7293_page_select(st, reg);
 	if (ret)
@@ -233,12 +238,12 @@ static int __ad7293_spi_write(struct ad7293_state *st, unsigned int reg,
 
 	st->data[0] = FIELD_GET(AD7293_REG_ADDR_MSK, reg);
 
-	if (FIELD_GET(AD7293_TRANSF_LEN_MSK, reg) == 1)
+	if (length == 1)
 		st->data[1] = val;
 	else
 		put_unaligned_be16(val, &st->data[1]);
 
-	return spi_write(st->spi, &st->data[0], length);
+	return spi_write(st->spi, &st->data[0], length + 1);
 }
 
 static int ad7293_spi_write(struct ad7293_state *st, unsigned int reg,
@@ -639,68 +644,55 @@ static int ad7293_read_avail(struct iio_dev *indio_dev,
 		case IIO_VOLTAGE:
 			*vals = adc_range_table;
 			*length = ARRAY_SIZE(adc_range_table);
-			break;
+			return IIO_AVAIL_LIST;
 		case IIO_CURRENT:
 			*vals = isense_gain_table;
 			*length = ARRAY_SIZE(isense_gain_table);
-			break;
+			return IIO_AVAIL_LIST;
 		default:
 			return -EINVAL;
 		}
-
-		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
 	}
 }
 
-#define AD7293_CHAN_ADC(_channel) {				\
-	.type = IIO_VOLTAGE,					\
-	.output = 0,						\
-	.indexed = 1,						\
-	.channel = _channel,					\
-	.info_mask_separate =					\
-		BIT(IIO_CHAN_INFO_RAW) |			\
-		BIT(IIO_CHAN_INFO_SCALE) |			\
-		BIT(IIO_CHAN_INFO_OFFSET),			\
-	.info_mask_shared_by_type_available =			\
-		BIT(IIO_CHAN_INFO_SCALE)			\
+#define AD7293_CHAN_ADC(_channel) {						\
+	.type = IIO_VOLTAGE,							\
+	.output = 0,								\
+	.indexed = 1,								\
+	.channel = _channel,							\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE) | \
+			      BIT(IIO_CHAN_INFO_OFFSET),			\
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE)		\
 }
 
-#define AD7293_CHAN_DAC(_channel) {				\
-	.type = IIO_VOLTAGE,					\
-	.output = 1,						\
-	.indexed = 1,						\
-	.channel = _channel,					\
-	.info_mask_separate =					\
-		BIT(IIO_CHAN_INFO_RAW) |			\
-		BIT(IIO_CHAN_INFO_OFFSET),			\
-	.info_mask_shared_by_type_available =			\
-		BIT(IIO_CHAN_INFO_OFFSET),			\
+#define AD7293_CHAN_DAC(_channel) {						\
+	.type = IIO_VOLTAGE,							\
+	.output = 1,								\
+	.indexed = 1,								\
+	.channel = _channel,							\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_OFFSET), \
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_OFFSET)		\
 }
 
-#define AD7293_CHAN_ISENSE(_channel) {				\
-	.type = IIO_CURRENT,					\
-	.output = 0,						\
-	.indexed = 1,						\
-	.channel = _channel,					\
-	.info_mask_separate =					\
-		BIT(IIO_CHAN_INFO_RAW) |			\
-		BIT(IIO_CHAN_INFO_OFFSET) |			\
-		BIT(IIO_CHAN_INFO_SCALE),			\
-	.info_mask_shared_by_type_available =			\
-		BIT(IIO_CHAN_INFO_SCALE)			\
+#define AD7293_CHAN_ISENSE(_channel) {						\
+	.type = IIO_CURRENT,							\
+	.output = 0,								\
+	.indexed = 1,								\
+	.channel = _channel,							\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_OFFSET) | \
+			      BIT(IIO_CHAN_INFO_SCALE),				\
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE)		\
 }
 
-#define AD7293_CHAN_TEMP(_channel) {				\
-	.type = IIO_TEMP,					\
-	.output = 0,						\
-	.indexed = 1,						\
-	.channel = _channel,					\
-	.info_mask_separate =					\
-		BIT(IIO_CHAN_INFO_RAW) |			\
-		BIT(IIO_CHAN_INFO_OFFSET),			\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE)	\
+#define AD7293_CHAN_TEMP(_channel) {						\
+	.type = IIO_TEMP,							\
+	.output = 0,								\
+	.indexed = 1,								\
+	.channel = _channel,							\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_OFFSET), \
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE)			\
 }
 
 static const struct iio_chan_spec ad7293_channels[] = {

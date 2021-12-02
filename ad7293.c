@@ -349,11 +349,14 @@ static int ad7293_set_offset(struct ad7293_state *st, unsigned int ch, u16 offse
 	if (ch < AD7293_TSENSE_MIN_OFFSET_CH)
 		return ad7293_spi_write(st, AD7293_REG_VIN0_OFFSET + ch, offset);
 	else if (ch < AD7293_ISENSE_MIN_OFFSET_CH)
-		return ad7293_spi_write(st, AD7293_REG_TSENSE_INT_OFFSET + (ch - AD7293_TSENSE_MIN_OFFSET_CH), offset);
+		return ad7293_spi_write(st, AD7293_REG_TSENSE_INT_OFFSET +
+					(ch - AD7293_TSENSE_MIN_OFFSET_CH), offset);
 	else if (ch < AD7293_VOUT_MIN_OFFSET_CH)
-		return ad7293_spi_write(st, AD7293_REG_ISENSE0_OFFSET + (ch - AD7293_ISENSE_MIN_OFFSET_CH), offset);
+		return ad7293_spi_write(st, AD7293_REG_ISENSE0_OFFSET +
+					(ch - AD7293_ISENSE_MIN_OFFSET_CH), offset);
 	else if (ch <= AD7293_VOUT_MAX_OFFSET_CH)
-		return ad7293_spi_update_bits(st, AD7293_REG_UNI_VOUT0_OFFSET + (ch - AD7293_VOUT_MIN_OFFSET_CH),
+		return ad7293_spi_update_bits(st, AD7293_REG_UNI_VOUT0_OFFSET +
+						(ch - AD7293_VOUT_MIN_OFFSET_CH),
 						AD7293_REG_VOUT_OFFSET_MSK,
 						FIELD_PREP(AD7293_REG_VOUT_OFFSET_MSK, offset));
 
@@ -508,7 +511,8 @@ static int ad7293_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			if (chan->output) {
-				ret = ad7293_get_offset(st, chan->channel + AD7293_VOUT_MIN_OFFSET_CH, &data);
+				ret = ad7293_get_offset(st, chan->channel +
+							AD7293_VOUT_MIN_OFFSET_CH, &data);
 
 				data = FIELD_GET(AD7293_REG_VOUT_OFFSET_MSK, data);
 			} else {
@@ -517,11 +521,13 @@ static int ad7293_read_raw(struct iio_dev *indio_dev,
 
 			break;
 		case IIO_CURRENT:
-			ret = ad7293_get_offset(st, chan->channel + AD7293_ISENSE_MIN_OFFSET_CH, &data);
+			ret = ad7293_get_offset(st, chan->channel +
+						AD7293_ISENSE_MIN_OFFSET_CH, &data);
 
 			break;
 		case IIO_TEMP:
-			ret = ad7293_get_offset(st, chan->channel + AD7293_TSENSE_MIN_OFFSET_CH, &data);
+			ret = ad7293_get_offset(st, chan->channel +
+						AD7293_TSENSE_MIN_OFFSET_CH, &data);
 
 			break;
 		default:
@@ -585,13 +591,16 @@ static int ad7293_write_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			if (chan->output)
-				return ad7293_set_offset(st, chan->channel + AD7293_VOUT_MIN_OFFSET_CH, val);
+				return ad7293_set_offset(st, chan->channel +
+							 AD7293_VOUT_MIN_OFFSET_CH, val);
 			else
 				return ad7293_set_offset(st, chan->channel, val);
 		case IIO_CURRENT:
-			return ad7293_set_offset(st, chan->channel + AD7293_ISENSE_MIN_OFFSET_CH, val);
+			return ad7293_set_offset(st, chan->channel +
+						 AD7293_ISENSE_MIN_OFFSET_CH, val);
 		case IIO_TEMP:
-			return ad7293_set_offset(st, chan->channel + AD7293_TSENSE_MIN_OFFSET_CH, val);
+			return ad7293_set_offset(st, chan->channel +
+						 AD7293_TSENSE_MIN_OFFSET_CH, val);
 		default:
 			return -EINVAL;
 		}
@@ -776,7 +785,6 @@ static int ad7293_init(struct ad7293_state *st)
 	int ret;
 	u16 chip_id;
 	struct spi_device *spi = st->spi;
-	unsigned int supply;
 
 	ret = ad7293_properties_parse(st);
 	if (ret)
@@ -808,12 +816,21 @@ static int ad7293_init(struct ad7293_state *st)
 	if (ret)
 		return ret;
 
-	supply = regulator_get_voltage(st->reg_avdd);
-	if (supply > 5500000 || supply < 4500000)
+	ret = regulator_get_voltage(st->reg_avdd);
+	if (ret < 0) {
+		dev_err(&spi->dev, "Failed to read avdd regulator: %d\n", ret);
+		return ret;
+	}
+
+	if (ret > 5500000 || ret < 4500000)
 		return -EINVAL;
 
-	supply = regulator_get_voltage(st->reg_vdrive);
-	if (supply > 5500000 || supply < 1700000)
+	ret = regulator_get_voltage(st->reg_vdrive);
+	if (ret < 0) {
+		dev_err(&spi->dev, "Failed to read vdrive regulator: %d\n", ret);
+		return ret;
+	}
+	if (ret > 5500000 || ret < 1700000)
 		return -EINVAL;
 
 	/* Check Chip ID */

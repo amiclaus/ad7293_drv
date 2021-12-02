@@ -25,9 +25,7 @@ properties:
 
   avdd-supply: true
 
-  vdrive-supply:
-    description:
-      VDRIVE voltage regulator.
+  vdrive-supply: true
 
   reset-gpios:
     maxItems: 1

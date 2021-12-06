@@ -271,7 +271,8 @@ static int ad7293_spi_update_bits(struct ad7293_state *st, unsigned int reg,
 	return ret;
 }
 
-static int ad7293_adc_get_scale(struct ad7293_state *st, unsigned int ch, u16 *range)
+static int ad7293_adc_get_scale(struct ad7293_state *st, unsigned int ch,
+				u16 *range)
 {
 	int ret;
 	u16 data;
@@ -296,7 +297,8 @@ exit:
 	return ret;
 }
 
-static int ad7293_adc_set_scale(struct ad7293_state *st, unsigned int ch, u16 range)
+static int ad7293_adc_set_scale(struct ad7293_state *st, unsigned int ch,
+				u16 range)
 {
 	int ret;
 	unsigned int ch_msk = BIT(ch);
@@ -316,7 +318,8 @@ exit:
 	return ret;
 }
 
-static int ad7293_get_offset(struct ad7293_state *st, unsigned int ch, u16 *offset)
+static int ad7293_get_offset(struct ad7293_state *st, unsigned int ch,
+			     u16 *offset)
 {
 	if (ch < AD7293_TSENSE_MIN_OFFSET_CH)
 		return ad7293_spi_read(st, AD7293_REG_VIN0_OFFSET + ch, offset);
@@ -330,33 +333,43 @@ static int ad7293_get_offset(struct ad7293_state *st, unsigned int ch, u16 *offs
 	return -EINVAL;
 }
 
-static int ad7293_set_offset(struct ad7293_state *st, unsigned int ch, u16 offset)
+static int ad7293_set_offset(struct ad7293_state *st, unsigned int ch,
+			     u16 offset)
 {
 	if (ch < AD7293_TSENSE_MIN_OFFSET_CH)
-		return ad7293_spi_write(st, AD7293_REG_VIN0_OFFSET + ch, offset);
+		return ad7293_spi_write(st, AD7293_REG_VIN0_OFFSET + ch,
+					offset);
 	else if (ch < AD7293_ISENSE_MIN_OFFSET_CH)
-		return ad7293_spi_write(st, AD7293_REG_TSENSE_INT_OFFSET +
-					(ch - AD7293_TSENSE_MIN_OFFSET_CH), offset);
+		return ad7293_spi_write(st,
+					AD7293_REG_TSENSE_INT_OFFSET +
+					(ch - AD7293_TSENSE_MIN_OFFSET_CH),
+					offset);
 	else if (ch < AD7293_VOUT_MIN_OFFSET_CH)
-		return ad7293_spi_write(st, AD7293_REG_ISENSE0_OFFSET +
-					(ch - AD7293_ISENSE_MIN_OFFSET_CH), offset);
+		return ad7293_spi_write(st,
+					AD7293_REG_ISENSE0_OFFSET +
+					(ch - AD7293_ISENSE_MIN_OFFSET_CH),
+					offset);
 	else if (ch <= AD7293_VOUT_MAX_OFFSET_CH)
-		return ad7293_spi_update_bits(st, AD7293_REG_UNI_VOUT0_OFFSET +
-						(ch - AD7293_VOUT_MIN_OFFSET_CH),
-						AD7293_REG_VOUT_OFFSET_MSK,
-						FIELD_PREP(AD7293_REG_VOUT_OFFSET_MSK, offset));
+		return ad7293_spi_update_bits(st,
+					      AD7293_REG_UNI_VOUT0_OFFSET +
+					      (ch - AD7293_VOUT_MIN_OFFSET_CH),
+					      AD7293_REG_VOUT_OFFSET_MSK,
+					      FIELD_PREP(AD7293_REG_VOUT_OFFSET_MSK, offset));
 
 	return -EINVAL;
 }
 
-static int ad7293_isense_set_scale(struct ad7293_state *st, unsigned int ch, u16 gain)
+static int ad7293_isense_set_scale(struct ad7293_state *st, unsigned int ch,
+				   u16 gain)
 {
 	unsigned int ch_msk = (0xf << (4 * ch));
 
-	return ad7293_spi_update_bits(st, AD7293_REG_ISENSE_GAIN, ch_msk, gain << (4 * ch));
+	return ad7293_spi_update_bits(st, AD7293_REG_ISENSE_GAIN, ch_msk,
+				      gain << (4 * ch));
 }
 
-static int ad7293_isense_get_scale(struct ad7293_state *st, unsigned int ch, u16 *gain)
+static int ad7293_isense_get_scale(struct ad7293_state *st, unsigned int ch,
+				   u16 *gain)
 {
 	int ret;
 
@@ -369,7 +382,8 @@ static int ad7293_isense_get_scale(struct ad7293_state *st, unsigned int ch, u16
 	return ret;
 }
 
-static int ad7293_dac_write_raw(struct ad7293_state *st, unsigned int ch, u16 raw)
+static int ad7293_dac_write_raw(struct ad7293_state *st, unsigned int ch,
+				u16 raw)
 {
 	int ret;
 
@@ -388,8 +402,8 @@ exit:
 	return ret;
 }
 
-static int ad7293_ch_read_raw(struct ad7293_state *st, enum ad7293_ch_type type, unsigned int ch,
-			      u16 *raw)
+static int ad7293_ch_read_raw(struct ad7293_state *st, enum ad7293_ch_type type,
+			      unsigned int ch, u16 *raw)
 {
 	int ret;
 	unsigned int reg_wr, reg_rd, data_wr;
@@ -425,13 +439,15 @@ static int ad7293_ch_read_raw(struct ad7293_state *st, enum ad7293_ch_type type,
 
 	if (type != AD7293_DAC) {
 		if (type == AD7293_ADC_TSENSE) {
-			ret = __ad7293_spi_write(st, AD7293_REG_TSENSE_BG_EN, BIT(ch));
+			ret = __ad7293_spi_write(st, AD7293_REG_TSENSE_BG_EN,
+						 BIT(ch));
 			if (ret)
 				goto exit;
 
 			usleep_range(9000, 9900);
 		} else if (type == AD7293_ADC_ISENSE) {
-			ret = __ad7293_spi_write(st, AD7293_REG_ISENSE_BG_EN, BIT(ch));
+			ret = __ad7293_spi_write(st, AD7293_REG_ISENSE_BG_EN,
+						 BIT(ch));
 			if (ret)
 				goto exit;
 
@@ -470,17 +486,21 @@ static int ad7293_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			if (chan->output)
-				ret =  ad7293_ch_read_raw(st, AD7293_DAC, chan->channel, &data);
+				ret =  ad7293_ch_read_raw(st, AD7293_DAC,
+							  chan->channel, &data);
 			else
-				ret =  ad7293_ch_read_raw(st, AD7293_ADC_VINX, chan->channel, &data);
+				ret =  ad7293_ch_read_raw(st, AD7293_ADC_VINX,
+							  chan->channel, &data);
 
 			break;
 		case IIO_CURRENT:
-			ret =  ad7293_ch_read_raw(st, AD7293_ADC_ISENSE, chan->channel, &data);
+			ret =  ad7293_ch_read_raw(st, AD7293_ADC_ISENSE,
+						  chan->channel, &data);
 
 			break;
 		case IIO_TEMP:
-			ret =  ad7293_ch_read_raw(st, AD7293_ADC_TSENSE, chan->channel, &data);
+			ret =  ad7293_ch_read_raw(st, AD7293_ADC_TSENSE,
+						  chan->channel, &data);
 
 			break;
 		default:
@@ -497,8 +517,9 @@ static int ad7293_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			if (chan->output) {
-				ret = ad7293_get_offset(st, chan->channel +
-							AD7293_VOUT_MIN_OFFSET_CH, &data);
+				ret = ad7293_get_offset(st,
+							chan->channel + AD7293_VOUT_MIN_OFFSET_CH,
+							&data);
 
 				data = FIELD_GET(AD7293_REG_VOUT_OFFSET_MSK, data);
 			} else {
@@ -507,13 +528,15 @@ static int ad7293_read_raw(struct iio_dev *indio_dev,
 
 			break;
 		case IIO_CURRENT:
-			ret = ad7293_get_offset(st, chan->channel +
-						AD7293_ISENSE_MIN_OFFSET_CH, &data);
+			ret = ad7293_get_offset(st,
+						chan->channel + AD7293_ISENSE_MIN_OFFSET_CH,
+						&data);
 
 			break;
 		case IIO_TEMP:
-			ret = ad7293_get_offset(st, chan->channel +
-						AD7293_TSENSE_MIN_OFFSET_CH, &data);
+			ret = ad7293_get_offset(st,
+						chan->channel + AD7293_TSENSE_MIN_OFFSET_CH,
+						&data);
 
 			break;
 		default:
@@ -577,16 +600,22 @@ static int ad7293_write_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			if (chan->output)
-				return ad7293_set_offset(st, chan->channel +
-							 AD7293_VOUT_MIN_OFFSET_CH, val);
+				return ad7293_set_offset(st,
+							 chan->channel +
+							 AD7293_VOUT_MIN_OFFSET_CH,
+							 val);
 			else
 				return ad7293_set_offset(st, chan->channel, val);
 		case IIO_CURRENT:
-			return ad7293_set_offset(st, chan->channel +
-						 AD7293_ISENSE_MIN_OFFSET_CH, val);
+			return ad7293_set_offset(st,
+						 chan->channel +
+						 AD7293_ISENSE_MIN_OFFSET_CH,
+						 val);
 		case IIO_TEMP:
-			return ad7293_set_offset(st, chan->channel +
-						 AD7293_TSENSE_MIN_OFFSET_CH, val);
+			return ad7293_set_offset(st,
+						 chan->channel +
+						 AD7293_TSENSE_MIN_OFFSET_CH,
+						 val);
 		default:
 			return -EINVAL;
 		}
@@ -612,10 +641,13 @@ static int ad7293_reg_access(struct iio_dev *indio_dev,
 	struct ad7293_state *st = iio_priv(indio_dev);
 	int ret;
 
-	if (read_val)
-		ret = ad7293_spi_read(st, reg, (u16 *)read_val);
-	else
+	if (read_val) {
+		u16 temp;
+		ret = ad7293_spi_read(st, reg, &temp);
+		*read_val = temp;
+	} else {
 		ret = ad7293_spi_write(st, reg, (u16)write_val);
+	}
 
 	return ret;
 }
@@ -652,42 +684,46 @@ static int ad7293_read_avail(struct iio_dev *indio_dev,
 	}
 }
 
-#define AD7293_CHAN_ADC(_channel) {						\
-	.type = IIO_VOLTAGE,							\
-	.output = 0,								\
-	.indexed = 1,								\
-	.channel = _channel,							\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE) | \
-			      BIT(IIO_CHAN_INFO_OFFSET),			\
-	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE)		\
+#define AD7293_CHAN_ADC(_channel) {					\
+	.type = IIO_VOLTAGE,						\
+	.output = 0,							\
+	.indexed = 1,							\
+	.channel = _channel,						\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
+			      BIT(IIO_CHAN_INFO_SCALE) |		\
+			      BIT(IIO_CHAN_INFO_OFFSET),		\
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE)	\
 }
 
-#define AD7293_CHAN_DAC(_channel) {						\
-	.type = IIO_VOLTAGE,							\
-	.output = 1,								\
-	.indexed = 1,								\
-	.channel = _channel,							\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_OFFSET), \
-	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_OFFSET)		\
+#define AD7293_CHAN_DAC(_channel) {					\
+	.type = IIO_VOLTAGE,						\
+	.output = 1,							\
+	.indexed = 1,							\
+	.channel = _channel,						\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
+			      BIT(IIO_CHAN_INFO_OFFSET),		\
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_OFFSET)	\
 }
 
-#define AD7293_CHAN_ISENSE(_channel) {						\
-	.type = IIO_CURRENT,							\
-	.output = 0,								\
-	.indexed = 1,								\
-	.channel = _channel,							\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_OFFSET) | \
-			      BIT(IIO_CHAN_INFO_SCALE),				\
-	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE)		\
+#define AD7293_CHAN_ISENSE(_channel) {					\
+	.type = IIO_CURRENT,						\
+	.output = 0,							\
+	.indexed = 1,							\
+	.channel = _channel,						\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
+			      BIT(IIO_CHAN_INFO_OFFSET) |		\
+			      BIT(IIO_CHAN_INFO_SCALE),			\
+	.info_mask_shared_by_type_available = BIT(IIO_CHAN_INFO_SCALE)	\
 }
 
-#define AD7293_CHAN_TEMP(_channel) {						\
-	.type = IIO_TEMP,							\
-	.output = 0,								\
-	.indexed = 1,								\
-	.channel = _channel,							\
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_OFFSET), \
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE)			\
+#define AD7293_CHAN_TEMP(_channel) {					\
+	.type = IIO_TEMP,						\
+	.output = 0,							\
+	.indexed = 1,							\
+	.channel = _channel,						\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
+			      BIT(IIO_CHAN_INFO_OFFSET),		\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE)		\
 }
 
 static const struct iio_chan_spec ad7293_channels[] = {
@@ -782,7 +818,8 @@ static int ad7293_init(struct ad7293_state *st)
 
 	ret = regulator_enable(st->reg_avdd);
 	if (ret) {
-		dev_err(&spi->dev, "Failed to enable specified AVDD Voltage!\n");
+		dev_err(&spi->dev,
+			"Failed to enable specified AVDD Voltage!\n");
 		return ret;
 	}
 
@@ -793,7 +830,8 @@ static int ad7293_init(struct ad7293_state *st)
 
 	ret = regulator_enable(st->reg_vdrive);
 	if (ret) {
-		dev_err(&spi->dev, "Failed to enable specified VDRIVE Voltage!\n");
+		dev_err(&spi->dev,
+			"Failed to enable specified VDRIVE Voltage!\n");
 		return ret;
 	}
 
@@ -813,7 +851,8 @@ static int ad7293_init(struct ad7293_state *st)
 
 	ret = regulator_get_voltage(st->reg_vdrive);
 	if (ret < 0) {
-		dev_err(&spi->dev, "Failed to read vdrive regulator: %d\n", ret);
+		dev_err(&spi->dev,
+			"Failed to read vdrive regulator: %d\n", ret);
 		return ret;
 	}
 	if (ret > 5500000 || ret < 1700000)

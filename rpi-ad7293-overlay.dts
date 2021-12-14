@@ -23,12 +23,6 @@
 				regulator-max-microvolt = <5000000>;
 				regulator-boot-on;
 			};
-		};
-	};
-
-	fragment@2 {
-		target-path = "/";
-		__overlay__ {
 			vdrive: fixedregulator@1 {
 				compatible = "regulator-fixed";
 				regulator-name = "vdrive";
@@ -39,7 +33,7 @@
 		};
 	};
 
-	fragment@3 {
+	fragment@2 {
 		target = <&spi0>;
 
 		__overlay__{

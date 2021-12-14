@@ -643,6 +643,7 @@ static int ad7293_reg_access(struct iio_dev *indio_dev,
 
 	if (read_val) {
 		u16 temp;
+
 		ret = ad7293_spi_read(st, reg, &temp);
 		*read_val = temp;
 	} else {

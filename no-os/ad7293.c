@@ -36,3 +36,65 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
+
+/******************************************************************************/
+/***************************** Include Files **********************************/
+/******************************************************************************/
+#include <malloc.h>
+#include "ad7293.h"
+#include "no_os_error.h"
+
+/******************************************************************************/
+/************************** Functions Implementation **************************/
+/******************************************************************************/
+/**
+ * @brief AD7293 Resources Deallocation.
+ * @param dev - The device structure.
+ * @return Returns 0 in case of success or negative error code otherwise.
+ */
+int ad7293_remove(struct ad7293_dev *dev)
+{
+	int ret;
+
+	ret = no_os_spi_remove(dev->spi_desc);
+	if (ret)
+		return ret;
+
+	free(dev);
+
+	return 0;
+}
+
+/**
+ * @brief Initializes the ad7293.
+ * @param device - The device structure.
+ * @param init_param - The structure containing the device initial parameters.
+ * @return Returns 0 in case of success or negative error code.
+ */
+int ad7293_init(struct ad7293_dev **device,
+		  struct ad7293_init_param *init_param)
+{
+	struct ad7293_dev *dev;
+	uint16_t chip_id, enable_reg, enable_reg_msk;
+	int ret;
+
+	dev = (struct ad7293_dev *)calloc(1, sizeof(*dev));
+	if (!dev)
+		return -ENOMEM;
+
+	/* SPI */
+	return no_os_spi_init(&dev->spi_desc, init_param->spi_init);
+	if (ret)
+		goto error_dev;
+
+	*device = dev;
+
+	return 0;
+
+error_spi:
+	no_os_spi_remove(dev->spi_desc);
+error_dev:
+	free(dev);
+
+	return ret;
+}

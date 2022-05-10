@@ -150,4 +150,15 @@
 #define AD7293_REG_VINX_RANGE_SET_CH_MSK(x, ch)	(((x) & 0x1) << (ch))
 #define AD7293_CHIP_ID				0x18
 
+/******************************************************************************/
+/************************ Functions Declarations ******************************/
+/******************************************************************************/
+
+/** AD7293 Initialization */
+int ad7293_init(struct ad7293_dev **device,
+		  struct ad7293_init_param *init_param);
+
+/** AD7293 Resources Deallocation */
+int ad7293_remove(struct ad7293_dev *dev);
+
 #endif /* AD7293_H_ */

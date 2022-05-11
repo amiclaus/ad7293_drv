@@ -150,6 +150,46 @@
 #define AD7293_REG_VINX_RANGE_SET_CH_MSK(x, ch)	(((x) & 0x1) << (ch))
 #define AD7293_CHIP_ID				0x18
 
+/**
+ * @enum ad7293_ch_type
+ * @brief AD7293 Channel Type
+ */
+enum ad7293_ch_type {
+	AD7293_ADC_VINX,
+	AD7293_ADC_TSENSE,
+	AD7293_ADC_ISENSE,
+	AD7293_DAC,
+};
+
+/**
+ * @enum ad7293_max_offset
+ * @brief AD7293 Maximum Offset Values
+ */
+enum ad7293_max_offset {
+	AD7293_TSENSE_MIN_OFFSET_CH = 4,
+	AD7293_ISENSE_MIN_OFFSET_CH = 7,
+	AD7293_VOUT_MIN_OFFSET_CH = 11,
+	AD7293_VOUT_MAX_OFFSET_CH = 18,
+};
+
+/**
+ * @struct ad7293_dev
+ * @brief AD7293 Device Descriptor.
+ */
+struct ad7293_dev {
+	/** SPI Descriptor */
+	struct no_os_spi_desc		*spi_desc;
+};
+
+/**
+ * @struct ad7293_init_param
+ * @brief AD7293 Initialization Parameters structure.
+ */
+struct ad7293_init_param {
+	/** SPI Initialization parameters */
+	struct no_os_spi_init_param	*spi_init;
+};
+
 /******************************************************************************/
 /************************ Functions Declarations ******************************/
 /******************************************************************************/

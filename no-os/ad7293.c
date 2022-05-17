@@ -43,20 +43,379 @@
 #include <malloc.h>
 #include "ad7293.h"
 #include "no_os_error.h"
-
-/******************************************************************************/
-/*************************** Variables Definition *****************************/
-/******************************************************************************/
-
-static const int dac_offset_table[] = {0, 1, 2};
-
-static const int isense_gain_table[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-
-static const int adc_range_table[] = {0, 1, 2, 3};
+#include "no_os_delay.h"
 
 /******************************************************************************/
 /************************** Functions Implementation **************************/
 /******************************************************************************/
+
+static int ad7293_page_select(struct ad7293_dev *dev, unsigned int reg)
+{
+	int ret;
+	uint8_t data[2];
+
+	if (dev->page_select != no_os_field_get(AD7293_PAGE_ADDR_MSK, reg)) {
+		data[0] = no_os_field_get(AD7293_REG_ADDR_MSK, AD7293_REG_PAGE_SELECT);
+		data[1] = no_os_field_get(AD7293_PAGE_ADDR_MSK, reg);
+
+		ret = no_os_spi_write_and_read(dev->spi_desc, data, 2);
+		if (ret)
+			return ret;
+
+		dev->page_select = no_os_field_get(AD7293_PAGE_ADDR_MSK, reg);
+	}
+
+	return 0;
+}
+
+int ad7293_spi_read(struct ad7293_dev *dev, unsigned int reg, uint16_t *val)
+{
+	uint8_t buff[AD7293_BUFF_SIZE_BYTES];
+	unsigned int length;
+	int ret;
+
+	length = no_os_field_get(AD7293_TRANSF_LEN_MSK, reg);
+
+	ret = ad7293_page_select(dev, reg);
+	if (ret)
+		return ret;
+
+	buff[0] = AD7293_READ | no_os_field_get(AD7293_REG_ADDR_MSK, reg);
+	buff[1] = 0x0;
+	buff[2] = 0x0;
+
+	ret = no_os_spi_write_and_read(dev->spi_desc, buff, length + 1);
+	if (ret)
+		return ret;
+
+	if (length == 1)
+		*val = buff[1];
+	else
+		*val = no_os_get_unaligned_be16(&buff[1]);
+
+	return 0;
+}
+
+int ad7293_spi_write(struct ad7293_dev *dev, unsigned int reg, uint16_t val)
+{
+	uint8_t buff[AD7293_BUFF_SIZE_BYTES];
+	unsigned int length;
+	int ret;
+
+	length = no_os_field_get(AD7293_TRANSF_LEN_MSK, reg);
+
+	ret = ad7293_page_select(dev, reg);
+	if (ret)
+		return ret;
+
+	buff[0] = no_os_field_get(AD7293_REG_ADDR_MSK, reg);
+
+	if (length == 1)
+		buff[1] = val;
+	else
+		no_os_put_unaligned_be16(val, &buff[1]);
+
+	return no_os_spi_write_and_read(dev->spi_desc, buff, length + 1);
+}
+
+int ad7293_spi_update_bits(struct ad7293_dev *dev, unsigned int reg,
+			   uint16_t mask, uint16_t val)
+{
+	int ret;
+	uint16_t data, temp;
+
+	ret = ad7293_spi_read(dev, reg, &data);
+	if (ret)
+		return ret;
+
+	temp = (data & ~mask) | (val & mask);
+
+	return ad7293_spi_write(dev, reg, temp);
+}
+
+int ad7293_adc_get_scale(struct ad7293_dev *dev, unsigned int ch,
+			 uint16_t *range)
+{
+	int ret;
+	uint16_t data;
+
+	ret = ad7293_spi_read(dev, AD7293_REG_VINX_RANGE1, &data);
+	if (ret)
+		return ret;
+
+	*range = AD7293_REG_VINX_RANGE_GET_CH_MSK(data, ch);
+
+	ret = ad7293_spi_read(dev, AD7293_REG_VINX_RANGE0, &data);
+	if (ret)
+		return ret;
+
+	*range |= AD7293_REG_VINX_RANGE_GET_CH_MSK(data, ch) << 1;
+
+	return ret;
+}
+
+int ad7293_adc_set_scale(struct ad7293_dev *dev, unsigned int ch,
+			 uint16_t range)
+{
+	int ret;
+	unsigned int ch_msk = NO_OS_BIT(ch);
+
+	ret = ad7293_spi_update_bits(dev, AD7293_REG_VINX_RANGE1, ch_msk,
+				     AD7293_REG_VINX_RANGE_SET_CH_MSK(range, ch));
+	if (ret)
+		return ret;
+
+	return ad7293_spi_update_bits(dev, AD7293_REG_VINX_RANGE0, ch_msk,
+				      AD7293_REG_VINX_RANGE_SET_CH_MSK((range >> 1), ch));
+}
+
+int ad7293_isense_set_scale(struct ad7293_dev *dev, unsigned int ch,
+			    uint16_t gain)
+{
+	unsigned int ch_msk = (0xf << (4 * ch));
+
+	return ad7293_spi_update_bits(dev, AD7293_REG_ISENSE_GAIN, ch_msk,
+				      gain << (4 * ch));
+}
+
+int ad7293_isense_get_scale(struct ad7293_dev *dev, unsigned int ch,
+			    uint16_t *gain)
+{
+	int ret;
+
+	ret = ad7293_spi_read(dev, AD7293_REG_ISENSE_GAIN, gain);
+	if (ret)
+		return ret;
+
+	*gain = (*gain >> (4 * ch)) & 0xf;
+
+	return ret;
+}
+
+int ad7293_get_offset(struct ad7293_dev *dev,  enum ad7293_ch_type type,
+		      unsigned int ch, uint16_t *offset)
+{
+	unsigned int reg_rd;
+
+	switch (type) {
+	case AD7293_ADC_VINX:
+		reg_rd = AD7293_REG_VIN0_OFFSET;
+
+		break;
+	case AD7293_ADC_TSENSE:
+		reg_rd = AD7293_REG_TSENSE_INT_OFFSET;
+
+		break;
+	case AD7293_ADC_ISENSE:
+		reg_rd = AD7293_REG_ISENSE0_OFFSET;
+
+		break;
+	case AD7293_DAC:
+		reg_rd = AD7293_REG_UNI_VOUT0_OFFSET;
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ad7293_spi_read(dev, reg_rd + ch, offset);
+}
+
+int ad7293_set_offset(struct ad7293_dev *dev,  enum ad7293_ch_type type,
+		      unsigned int ch, uint16_t offset)
+{
+	unsigned int reg_wr;
+
+	switch (type) {
+	case AD7293_ADC_VINX:
+		reg_wr = AD7293_REG_VIN0_OFFSET;
+
+		break;
+	case AD7293_ADC_TSENSE:
+		reg_wr = AD7293_REG_TSENSE_INT_OFFSET;
+
+		break;
+	case AD7293_ADC_ISENSE:
+		reg_wr = AD7293_REG_ISENSE0_OFFSET;
+
+		break;
+	case AD7293_DAC:
+		reg_wr = AD7293_REG_UNI_VOUT0_OFFSET;
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ad7293_spi_write(dev, reg_wr + ch, offset);
+}
+
+int ad7293_dac_write_raw(struct ad7293_dev *dev, unsigned int ch,
+			 uint16_t raw)
+{
+	int ret;
+
+	ret = ad7293_spi_update_bits(dev, AD7293_REG_DAC_EN, NO_OS_BIT(ch),
+				     NO_OS_BIT(ch));
+	if (ret)
+		return ret;
+
+	return ad7293_spi_write(dev, AD7293_REG_UNI_VOUT0 + ch,
+				no_os_field_prep(AD7293_REG_DATA_RAW_MSK, raw));
+}
+
+int ad7293_ch_read_raw(struct ad7293_dev *dev, enum ad7293_ch_type type,
+		       unsigned int ch, uint16_t *raw)
+{
+	int ret;
+	unsigned int reg_wr, reg_rd, data_wr;
+
+	switch (type) {
+	case AD7293_ADC_VINX:
+		reg_wr = AD7293_REG_VINX_SEQ;
+		reg_rd = AD7293_REG_VIN0 + ch;
+		data_wr = NO_OS_BIT(ch);
+
+		break;
+	case AD7293_ADC_TSENSE:
+		reg_wr = AD7293_REG_ISENSEX_TSENSEX_SEQ;
+		reg_rd = AD7293_REG_TSENSE_INT + ch;
+		data_wr = NO_OS_BIT(ch);
+
+		break;
+	case AD7293_ADC_ISENSE:
+		reg_wr = AD7293_REG_ISENSEX_TSENSEX_SEQ;
+		reg_rd = AD7293_REG_ISENSE_0 + ch;
+		data_wr = NO_OS_BIT(ch) << 8;
+
+		break;
+	case AD7293_DAC:
+		reg_rd = AD7293_REG_UNI_VOUT0 + ch;
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (type != AD7293_DAC) {
+		if (type == AD7293_ADC_TSENSE) {
+			ret = ad7293_spi_write(dev, AD7293_REG_TSENSE_BG_EN,
+					       NO_OS_BIT(ch));
+			if (ret)
+				return ret;
+
+			no_os_mdelay(9);
+		} else if (type == AD7293_ADC_ISENSE) {
+			ret = ad7293_spi_write(dev, AD7293_REG_ISENSE_BG_EN,
+					       NO_OS_BIT(ch));
+			if (ret)
+				return ret;
+
+			no_os_mdelay(9);
+		}
+
+		ret = ad7293_spi_write(dev, reg_wr, data_wr);
+		if (ret)
+			return ret;
+
+		ret = ad7293_spi_write(dev, AD7293_REG_CONV_CMD, 0x82);
+		if (ret)
+			return ret;
+	}
+
+	ret = ad7293_spi_read(dev, reg_rd, raw);
+	if (ret)
+		return ret;
+
+	*raw = no_os_field_get(AD7293_REG_DATA_RAW_MSK, *raw);
+
+	return 0;
+}
+
+int ad7293_soft_reset(struct ad7293_dev *dev)
+{
+	int ret;
+
+	ret = ad7293_spi_write(dev, AD7293_REG_SOFT_RESET, 0x7293);
+	if (ret)
+		return ret;
+
+	return ad7293_spi_write(dev, AD7293_REG_SOFT_RESET, 0x0000);
+}
+
+int ad7293_reset(struct ad7293_dev *dev)
+{
+	if (dev->gpio_reset) {
+		no_os_gpio_direction_output(dev->gpio_reset, 0);
+		/* Datasheet: Minimum Reset pulse width: 90ns */
+		no_os_udelay(1);
+		no_os_gpio_direction_output(dev->gpio_reset, 1);
+		/* Datasheet: Minimum Reset pulse width: 90ns */
+		no_os_udelay(1);
+
+		return 0;
+	}
+
+	/* Perform a software reset */
+	return ad7293_soft_reset(dev);
+}
+
+/**
+ * @brief Initializes the ad7293.
+ * @param device - The device structure.
+ * @param init_param - The structure containing the device initial parameters.
+ * @return Returns 0 in case of success or negative error code.
+ */
+int ad7293_init(struct ad7293_dev **device,
+		struct ad7293_init_param *init_param)
+{
+	struct ad7293_dev *dev;
+	uint16_t chip_id;
+	int ret;
+
+	dev = (struct ad7293_dev *)calloc(1, sizeof(*dev));
+	if (!dev)
+		return -ENOMEM;
+
+	/* SPI */
+	return no_os_spi_init(&dev->spi_desc, init_param->spi_init);
+	if (ret)
+		goto error_dev;
+
+	ret = no_os_gpio_get_optional(&dev->gpio_reset, init_param->gpio_reset);
+	if (ret)
+		goto error_spi;
+
+	dev->page_select = 0;
+
+	ret = ad7293_reset(dev);
+	if (ret)
+		goto error_gpio;
+
+	/* Check Chip ID */
+	ret = ad7293_spi_read(dev, AD7293_REG_DEVICE_ID, &chip_id);
+	if (ret)
+		goto error_gpio;
+
+	if (chip_id != AD7293_CHIP_ID) {
+		ret = -EINVAL;
+		goto error_gpio;
+	}
+
+	*device = dev;
+
+	return 0;
+
+error_gpio:
+	no_os_gpio_remove(dev->gpio_reset);
+error_spi:
+	no_os_spi_remove(dev->spi_desc);
+error_dev:
+	free(dev);
+
+	return ret;
+}
+
 /**
  * @brief AD7293 Resources Deallocation.
  * @param dev - The device structure.
@@ -73,38 +432,4 @@ int ad7293_remove(struct ad7293_dev *dev)
 	free(dev);
 
 	return 0;
-}
-
-/**
- * @brief Initializes the ad7293.
- * @param device - The device structure.
- * @param init_param - The structure containing the device initial parameters.
- * @return Returns 0 in case of success or negative error code.
- */
-int ad7293_init(struct ad7293_dev **device,
-		  struct ad7293_init_param *init_param)
-{
-	struct ad7293_dev *dev;
-	uint16_t chip_id, enable_reg, enable_reg_msk;
-	int ret;
-
-	dev = (struct ad7293_dev *)calloc(1, sizeof(*dev));
-	if (!dev)
-		return -ENOMEM;
-
-	/* SPI */
-	return no_os_spi_init(&dev->spi_desc, init_param->spi_init);
-	if (ret)
-		goto error_dev;
-
-	*device = dev;
-
-	return 0;
-
-error_spi:
-	no_os_spi_remove(dev->spi_desc);
-error_dev:
-	free(dev);
-
-	return ret;
 }

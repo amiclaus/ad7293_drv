@@ -46,16 +46,17 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "no_os_spi.h"
+#include "no_os_gpio.h"
 #include "no_os_util.h"
 
 /******************************************************************************/
 /********************** Macros and Constants Definitions **********************/
 /******************************************************************************/
 
-#define AD7293_R1B				BIT(16)
-#define AD7293_R2B				BIT(17)
-#define AD7293_PAGE_ADDR_MSK			GENMASK(15, 8)
-#define AD7293_PAGE(x)				FIELD_PREP(AD7293_PAGE_ADDR_MSK, x)
+#define AD7293_R1B				NO_OS_BIT(16)
+#define AD7293_R2B				NO_OS_BIT(17)
+#define AD7293_PAGE_ADDR_MSK			NO_OS_GENMASK(15, 8)
+#define AD7293_PAGE(x)				no_os_field_prep(AD7293_PAGE_ADDR_MSK, x)
 
 /* AD7293 Register Map Common */
 #define AD7293_REG_NO_OP			(AD7293_R1B | AD7293_PAGE(0x0) | 0x0)
@@ -140,12 +141,12 @@
 #define AD7293_REG_BI_VOUT3_OFFSET		(AD7293_R1B | AD7293_PAGE(0xE) | 0x37)
 
 /* AD7293 Miscellaneous Definitions */
-#define AD7293_READ				BIT(7)
-#define AD7293_TRANSF_LEN_MSK			GENMASK(17, 16)
-
-#define AD7293_REG_ADDR_MSK			GENMASK(7, 0)
-#define AD7293_REG_VOUT_OFFSET_MSK		GENMASK(5, 4)
-#define AD7293_REG_DATA_RAW_MSK			GENMASK(15, 4)
+#define AD7293_READ				NO_OS_BIT(7)
+#define AD7293_TRANSF_LEN_MSK			NO_OS_GENMASK(17, 16)
+#define AD7293_BUFF_SIZE_BYTES			3
+#define AD7293_REG_ADDR_MSK			NO_OS_GENMASK(7, 0)
+#define AD7293_REG_VOUT_OFFSET_MSK		NO_OS_GENMASK(5, 4)
+#define AD7293_REG_DATA_RAW_MSK			NO_OS_GENMASK(15, 4)
 #define AD7293_REG_VINX_RANGE_GET_CH_MSK(x, ch)	(((x) >> (ch)) & 0x1)
 #define AD7293_REG_VINX_RANGE_SET_CH_MSK(x, ch)	(((x) & 0x1) << (ch))
 #define AD7293_CHIP_ID				0x18
@@ -162,23 +163,14 @@ enum ad7293_ch_type {
 };
 
 /**
- * @enum ad7293_max_offset
- * @brief AD7293 Maximum Offset Values
- */
-enum ad7293_max_offset {
-	AD7293_TSENSE_MIN_OFFSET_CH = 4,
-	AD7293_ISENSE_MIN_OFFSET_CH = 7,
-	AD7293_VOUT_MIN_OFFSET_CH = 11,
-	AD7293_VOUT_MAX_OFFSET_CH = 18,
-};
-
-/**
  * @struct ad7293_dev
  * @brief AD7293 Device Descriptor.
  */
 struct ad7293_dev {
 	/** SPI Descriptor */
 	struct no_os_spi_desc		*spi_desc;
+	struct no_os_gpio_desc		*gpio_reset;
+	uint8_t				page_select;
 };
 
 /**
@@ -188,15 +180,52 @@ struct ad7293_dev {
 struct ad7293_init_param {
 	/** SPI Initialization parameters */
 	struct no_os_spi_init_param	*spi_init;
+	struct no_os_gpio_init_param	*gpio_reset;
 };
 
 /******************************************************************************/
 /************************ Functions Declarations ******************************/
 /******************************************************************************/
 
+int ad7293_spi_read(struct ad7293_dev *dev, unsigned int reg, uint16_t *val);
+
+int ad7293_spi_write(struct ad7293_dev *dev, unsigned int reg, uint16_t val);
+
+int ad7293_spi_update_bits(struct ad7293_dev *dev, unsigned int reg,
+			   uint16_t mask, uint16_t val);
+
+int ad7293_adc_get_scale(struct ad7293_dev *dev, unsigned int ch,
+			 uint16_t *range);
+
+int ad7293_adc_set_scale(struct ad7293_dev *dev, unsigned int ch,
+			 uint16_t range);
+
+int ad7293_isense_set_scale(struct ad7293_dev *dev, unsigned int ch,
+			    uint16_t gain);
+
+int ad7293_isense_get_scale(struct ad7293_dev *dev, unsigned int ch,
+			    uint16_t *gain);
+
+int ad7293_get_offset(struct ad7293_dev *dev,  enum ad7293_ch_type type,
+		      unsigned int ch, uint16_t *offset);
+
+int ad7293_set_offset(struct ad7293_dev *dev,  enum ad7293_ch_type type,
+		      unsigned int ch, uint16_t offset);
+
+int ad7293_dac_write_raw(struct ad7293_dev *dev, unsigned int ch,
+			 uint16_t raw);
+
+int ad7293_ch_read_raw(struct ad7293_dev *dev, enum ad7293_ch_type type,
+		       unsigned int ch, uint16_t *raw);
+
+int ad7293_soft_reset(struct ad7293_dev *dev);
+
+/** AD7293 Reset */
+int ad7293_reset(struct ad7293_dev *dev);
+
 /** AD7293 Initialization */
 int ad7293_init(struct ad7293_dev **device,
-		  struct ad7293_init_param *init_param);
+		struct ad7293_init_param *init_param);
 
 /** AD7293 Resources Deallocation */
 int ad7293_remove(struct ad7293_dev *dev);

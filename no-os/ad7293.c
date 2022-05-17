@@ -49,6 +49,12 @@
 /************************** Functions Implementation **************************/
 /******************************************************************************/
 
+/**
+ * @brief Set specific AD7293 page.
+ * @param dev - The device structure.
+ * @param reg - The register address.
+ * @return Returns 0 in case of success or negative error code otherwise.
+ */
 static int ad7293_page_select(struct ad7293_dev *dev, unsigned int reg)
 {
 	int ret;
@@ -68,6 +74,14 @@ static int ad7293_page_select(struct ad7293_dev *dev, unsigned int reg)
 	return 0;
 }
 
+
+/**
+ * @brief Reads data from AD7293 over SPI.
+ * @param dev - The device structure.
+ * @param reg - The register address.
+ * @param val - Data read from the device.
+ * @return Returns 0 in case of success or negative error code otherwise.
+ */
 int ad7293_spi_read(struct ad7293_dev *dev, unsigned int reg, uint16_t *val)
 {
 	uint8_t buff[AD7293_BUFF_SIZE_BYTES];
@@ -96,6 +110,13 @@ int ad7293_spi_read(struct ad7293_dev *dev, unsigned int reg, uint16_t *val)
 	return 0;
 }
 
+/**
+ * @brief Writes data to AD7293 over SPI.
+ * @param dev - The device structure.
+ * @param reg - The register address.
+ * @param val - Data value to write.
+ * @return Returns 0 in case of success or negative error code otherwise.
+ */
 int ad7293_spi_write(struct ad7293_dev *dev, unsigned int reg, uint16_t val)
 {
 	uint8_t buff[AD7293_BUFF_SIZE_BYTES];
@@ -118,6 +139,14 @@ int ad7293_spi_write(struct ad7293_dev *dev, unsigned int reg, uint16_t val)
 	return no_os_spi_write_and_read(dev->spi_desc, buff, length + 1);
 }
 
+/**
+ * @brief Update AD7293 register.
+ * @param dev - The device structure.
+ * @param reg - The register address.
+ * @param mask - Mask for specific register bits to be updated.
+ * @param val - Data written to the device (requires prior bit shifting).
+ * @return Returns 0 in case of success or negative error code otherwise.
+ */
 int ad7293_spi_update_bits(struct ad7293_dev *dev, unsigned int reg,
 			   uint16_t mask, uint16_t val)
 {
@@ -133,7 +162,14 @@ int ad7293_spi_update_bits(struct ad7293_dev *dev, unsigned int reg,
 	return ad7293_spi_write(dev, reg, temp);
 }
 
-int ad7293_adc_get_scale(struct ad7293_dev *dev, unsigned int ch,
+/**
+ * @brief Get the range value for ADC channels.
+ * @param dev - The device structure.
+ * @param ch - the channel number.
+ * @param range - the range value.
+ * @return Returns 0 in case of success or negative error code.
+ */
+int ad7293_adc_get_range(struct ad7293_dev *dev, unsigned int ch,
 			 uint16_t *range)
 {
 	int ret;
@@ -151,10 +187,17 @@ int ad7293_adc_get_scale(struct ad7293_dev *dev, unsigned int ch,
 
 	*range |= AD7293_REG_VINX_RANGE_GET_CH_MSK(data, ch) << 1;
 
-	return ret;
+	return 0;
 }
 
-int ad7293_adc_set_scale(struct ad7293_dev *dev, unsigned int ch,
+/**
+ * @brief Set the range value for ADC channels.
+ * @param dev - The device structure.
+ * @param ch - the channel number.
+ * @param range - the range value.
+ * @return Returns 0 in case of success or negative error code.
+ */
+int ad7293_adc_set_range(struct ad7293_dev *dev, unsigned int ch,
 			 uint16_t range)
 {
 	int ret;
@@ -169,8 +212,15 @@ int ad7293_adc_set_scale(struct ad7293_dev *dev, unsigned int ch,
 				      AD7293_REG_VINX_RANGE_SET_CH_MSK((range >> 1), ch));
 }
 
-int ad7293_isense_set_scale(struct ad7293_dev *dev, unsigned int ch,
-			    uint16_t gain)
+/**
+ * @brief Set the gain value for ISENSE channels.
+ * @param dev - The device structure.
+ * @param ch - the channel number.
+ * @param gain - the range value.
+ * @return Returns 0 in case of success or negative error code.
+ */
+int ad7293_isense_set_gain(struct ad7293_dev *dev, unsigned int ch,
+			   uint16_t gain)
 {
 	unsigned int ch_msk = (0xf << (4 * ch));
 
@@ -178,8 +228,15 @@ int ad7293_isense_set_scale(struct ad7293_dev *dev, unsigned int ch,
 				      gain << (4 * ch));
 }
 
-int ad7293_isense_get_scale(struct ad7293_dev *dev, unsigned int ch,
-			    uint16_t *gain)
+/**
+ * @brief Get the gain value for ISENSE channels.
+ * @param dev - The device structure.
+ * @param ch - the channel number.
+ * @param gain - the gain read.
+ * @return Returns 0 in case of success or negative error code.
+ */
+int ad7293_isense_get_gain(struct ad7293_dev *dev, unsigned int ch,
+			   uint16_t *gain)
 {
 	int ret;
 
@@ -189,9 +246,17 @@ int ad7293_isense_get_scale(struct ad7293_dev *dev, unsigned int ch,
 
 	*gain = (*gain >> (4 * ch)) & 0xf;
 
-	return ret;
+	return 0;
 }
 
+/**
+ * @brief Set offset value for specific channel and channel type.
+ * @param dev - The device structure.
+ * @param type - The channel type.
+ * @param ch - the channel number.
+ * @param offset - the raw value to be written.
+ * @return Returns 0 in case of success or negative error code.
+ */
 int ad7293_get_offset(struct ad7293_dev *dev,  enum ad7293_ch_type type,
 		      unsigned int ch, uint16_t *offset)
 {
@@ -221,6 +286,14 @@ int ad7293_get_offset(struct ad7293_dev *dev,  enum ad7293_ch_type type,
 	return ad7293_spi_read(dev, reg_rd + ch, offset);
 }
 
+/**
+ * @brief Set offset value for specific channel and channel type.
+ * @param dev - The device structure.
+ * @param type - The channel type.
+ * @param ch - the channel number.
+ * @param offset - the raw value read.
+ * @return Returns 0 in case of success or negative error code.
+ */
 int ad7293_set_offset(struct ad7293_dev *dev,  enum ad7293_ch_type type,
 		      unsigned int ch, uint16_t offset)
 {
@@ -250,6 +323,13 @@ int ad7293_set_offset(struct ad7293_dev *dev,  enum ad7293_ch_type type,
 	return ad7293_spi_write(dev, reg_wr + ch, offset);
 }
 
+/**
+ * @brief Set the DAC output raw value.
+ * @param dev - The device structure.
+ * @param ch - the channel number.
+ * @param raw - the raw value to be written.
+ * @return Returns 0 in case of success or negative error code.
+ */
 int ad7293_dac_write_raw(struct ad7293_dev *dev, unsigned int ch,
 			 uint16_t raw)
 {
@@ -264,6 +344,14 @@ int ad7293_dac_write_raw(struct ad7293_dev *dev, unsigned int ch,
 				no_os_field_prep(AD7293_REG_DATA_RAW_MSK, raw));
 }
 
+/**
+ * @brief Read raw value for specific channel and channel type.
+ * @param dev - The device structure.
+ * @param type - The channel type.
+ * @param ch - the channel number.
+ * @param raw - the raw value read.
+ * @return Returns 0 in case of success or negative error code.
+ */
 int ad7293_ch_read_raw(struct ad7293_dev *dev, enum ad7293_ch_type type,
 		       unsigned int ch, uint16_t *raw)
 {
@@ -332,6 +420,11 @@ int ad7293_ch_read_raw(struct ad7293_dev *dev, enum ad7293_ch_type type,
 	return 0;
 }
 
+/**
+ * @brief Perform software reset.
+ * @param dev - The device structure.
+ * @return Returns 0 in case of success or negative error code.
+ */
 int ad7293_soft_reset(struct ad7293_dev *dev)
 {
 	int ret;
@@ -343,6 +436,11 @@ int ad7293_soft_reset(struct ad7293_dev *dev)
 	return ad7293_spi_write(dev, AD7293_REG_SOFT_RESET, 0x0000);
 }
 
+/**
+ * @brief Perform both hardware and software reset.
+ * @param dev- The device structure.
+ * @return Returns 0 in case of success or negative error code.
+ */
 int ad7293_reset(struct ad7293_dev *dev)
 {
 	if (dev->gpio_reset) {

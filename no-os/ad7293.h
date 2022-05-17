@@ -187,37 +187,49 @@ struct ad7293_init_param {
 /************************ Functions Declarations ******************************/
 /******************************************************************************/
 
+/** AD7293 SPI read */
 int ad7293_spi_read(struct ad7293_dev *dev, unsigned int reg, uint16_t *val);
 
+/** AD7293 SPI write */
 int ad7293_spi_write(struct ad7293_dev *dev, unsigned int reg, uint16_t val);
 
+/** AD7293 SPI update bits */
 int ad7293_spi_update_bits(struct ad7293_dev *dev, unsigned int reg,
 			   uint16_t mask, uint16_t val);
 
-int ad7293_adc_get_scale(struct ad7293_dev *dev, unsigned int ch,
+/** AD7293 get ADC range */
+int ad7293_adc_get_range(struct ad7293_dev *dev, unsigned int ch,
 			 uint16_t *range);
 
-int ad7293_adc_set_scale(struct ad7293_dev *dev, unsigned int ch,
+/** AD7293 set ADC range */
+int ad7293_adc_set_range(struct ad7293_dev *dev, unsigned int ch,
 			 uint16_t range);
 
-int ad7293_isense_set_scale(struct ad7293_dev *dev, unsigned int ch,
-			    uint16_t gain);
+/** AD7293 set ISENSE gain */
+int ad7293_isense_set_gain(struct ad7293_dev *dev, unsigned int ch,
+			   uint16_t gain);
 
-int ad7293_isense_get_scale(struct ad7293_dev *dev, unsigned int ch,
-			    uint16_t *gain);
+/** AD7293 get ISENSE gain */
+int ad7293_isense_get_gain(struct ad7293_dev *dev, unsigned int ch,
+			   uint16_t *gain);
 
+/** AD7293 get offset */
 int ad7293_get_offset(struct ad7293_dev *dev,  enum ad7293_ch_type type,
 		      unsigned int ch, uint16_t *offset);
 
+/** AD7293 set offset */
 int ad7293_set_offset(struct ad7293_dev *dev,  enum ad7293_ch_type type,
 		      unsigned int ch, uint16_t offset);
 
+/** AD7293 write DAC value */
 int ad7293_dac_write_raw(struct ad7293_dev *dev, unsigned int ch,
 			 uint16_t raw);
 
+/** AD7293 read raw value */
 int ad7293_ch_read_raw(struct ad7293_dev *dev, enum ad7293_ch_type type,
 		       unsigned int ch, uint16_t *raw);
 
+/** AD7293 Software Reset */
 int ad7293_soft_reset(struct ad7293_dev *dev);
 
 /** AD7293 Reset */

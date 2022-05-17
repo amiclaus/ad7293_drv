@@ -1,6 +1,6 @@
 /***************************************************************************//**
- *   @file   ad7923.c
- *   @brief  Implementation of ad7923 Driver.
+ *   @file   ad7293.c
+ *   @brief  Implementation of ad7293 Driver.
  *   @author Antoniu Miclaus (antoniu.miclaus@analog.com)
 ********************************************************************************
  * Copyright 2022(c) Analog Devices, Inc.

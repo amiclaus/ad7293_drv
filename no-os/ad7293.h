@@ -1,6 +1,6 @@
 /***************************************************************************//**
- *   @file   ad7923.h
- *   @brief  Header file for ad7923 Driver.
+ *   @file   ad7293.h
+ *   @brief  Header file for ad7293 Driver.
  *   @author Antoniu Miclaus (antoniu.miclaus@analog.com)
 ********************************************************************************
  * Copyright 2022(c) Analog Devices, Inc.

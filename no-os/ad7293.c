@@ -74,7 +74,6 @@ static int ad7293_page_select(struct ad7293_dev *dev, unsigned int reg)
 	return 0;
 }
 
-
 /**
  * @brief Reads data from AD7293 over SPI.
  * @param dev - The device structure.

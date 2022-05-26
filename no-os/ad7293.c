@@ -405,7 +405,7 @@ int ad7293_ch_read_raw(struct ad7293_dev *dev, enum ad7293_ch_type type,
 		if (ret)
 			return ret;
 
-		ret = ad7293_spi_write(dev, AD7293_REG_CONV_CMD, 0x82);
+		ret = ad7293_spi_write(dev, AD7293_REG_CONV_CMD, AD7293_CONV_CMD_VAL);
 		if (ret)
 			return ret;
 	}
@@ -428,11 +428,11 @@ int ad7293_soft_reset(struct ad7293_dev *dev)
 {
 	int ret;
 
-	ret = ad7293_spi_write(dev, AD7293_REG_SOFT_RESET, 0x7293);
+	ret = ad7293_spi_write(dev, AD7293_REG_SOFT_RESET, AD7293_SOFT_RESET_VAL);
 	if (ret)
 		return ret;
 
-	return ad7293_spi_write(dev, AD7293_REG_SOFT_RESET, 0x0000);
+	return ad7293_spi_write(dev, AD7293_REG_SOFT_RESET, AD7293_SOFT_RESET_CLR_VAL);
 }
 
 /**
@@ -443,10 +443,10 @@ int ad7293_soft_reset(struct ad7293_dev *dev)
 int ad7293_reset(struct ad7293_dev *dev)
 {
 	if (dev->gpio_reset) {
-		no_os_gpio_direction_output(dev->gpio_reset, 0);
+		no_os_gpio_direction_output(dev->gpio_reset, NO_OS_GPIO_LOW);
 		/* Datasheet: Minimum Reset pulse width: 90ns */
 		no_os_udelay(1);
-		no_os_gpio_direction_output(dev->gpio_reset, 1);
+		no_os_gpio_direction_output(dev->gpio_reset, NO_OS_GPIO_HIGH);
 		/* Datasheet: Minimum Reset pulse width: 90ns */
 		no_os_udelay(1);
 
@@ -475,7 +475,7 @@ int ad7293_init(struct ad7293_dev **device,
 		return -ENOMEM;
 
 	/* SPI */
-	return no_os_spi_init(&dev->spi_desc, init_param->spi_init);
+	ret = no_os_spi_init(&dev->spi_desc, init_param->spi_init);
 	if (ret)
 		goto error_dev;
 

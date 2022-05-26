@@ -325,6 +325,9 @@
 #define AD7293_REG_VINX_RANGE_GET_CH_MSK(x, ch)	(((x) >> (ch)) & 0x1)
 #define AD7293_REG_VINX_RANGE_SET_CH_MSK(x, ch)	(((x) & 0x1) << (ch))
 #define AD7293_CHIP_ID				0x18
+#define AD7293_SOFT_RESET_VAL			0x7293
+#define AD7293_SOFT_RESET_CLR_VAL		0x0000
+#define AD7293_CONV_CMD_VAL			0x82
 
 /**
  * @enum ad7293_ch_type
